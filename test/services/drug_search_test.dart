@@ -8,6 +8,63 @@ import 'package:micudrugtest/services/drug_search.dart';
 import 'package:micudrugtest/services/preset_storage.dart';
 
 void main() {
+  const approvedBrands = {
+    'diltiazem': ['Herben', '헤르벤'],
+    'nicardipine': ['Perdipine', '페르디핀'],
+    'esmolol': ['Brevibloc', '브레비블록'],
+    'milrinone': ['Primacor', '프리마코'],
+    'rocuronium': ['Esmeron', '에스메론'],
+    'vecuronium': ['Vecaron', '베카론'],
+    'pantoprazole': ['Pantoloc', '판토록'],
+  };
+  for (final entry in approvedBrands.entries) {
+    test('${entry.key} approved brands preserve every department preset', () {
+      var matchedCount = 0;
+      for (final presets in defaultPresetMap().values) {
+        final expected = presets
+            .where(
+                (preset) => namesForDrug(preset.name)?.ingredient == entry.key)
+            .toList();
+        matchedCount += expected.length;
+        final originalJson = jsonEncode(presets);
+        for (final brand in entry.value) {
+          expect(searchDrugPresets(presets, brand), expected);
+          expect(searchDrugPresets(presets, brand.toUpperCase()), expected);
+          expect(namesForDrug('$brand 50mg')?.ingredient, entry.key);
+        }
+        expect(jsonEncode(presets), originalJson);
+      }
+      expect(matchedCount, greaterThan(0));
+    });
+  }
+
+  test('unselected brand candidates are not added and their drugs remain', () {
+    const excludedBrands = {
+      'nitroglycerin': ['Perlinganit', '페링가니트'],
+      'midazolam': ['Vascam', '바스캄'],
+      'remimazolam': ['Byfavo', '바이파보'],
+      'hydrocortisone': ['Solu-Cortef', '솔루코테프'],
+      'tirofiban': ['Aggrastat', '아그라스타트'],
+    };
+    final presets = defaultPresetMap().values.expand((items) => items).toList();
+    for (final entry in excludedBrands.entries) {
+      expect(searchDrugPresets(presets, entry.key), isNotEmpty);
+      for (final brand in entry.value) {
+        expect(searchDrugPresets(presets, brand), isEmpty);
+        expect(namesForDrug(brand), isNull);
+      }
+    }
+  });
+
+  test('approved brands keep strength and department variant filtering', () {
+    final departments = defaultPresetMap();
+    final herben = searchDrugPresets(departments['micu']!, '헤르벤 50mg');
+    expect(herben.single.name, 'diltiazem 50mg');
+    expect(searchDrugPresets(departments['micu']!, 'HERBEN50mg'), herben);
+    final esmeron = searchDrugPresets(departments['sicu']!, '에스메론 TS');
+    expect(esmeron.single.name, 'rocuronium (TS)');
+  });
+
   test('English and Korean brand and ingredient find the same saved presets',
       () {
     final presets = defaultPresetMap()['micu']!;

@@ -23,6 +23,17 @@ The following sources support product/ingredient name associations (checked
 - Novastan / argatroban: [Tanabe product announcement](https://www.tanabe-pharma.com/en/news/storage/20240617103013/pdf/e_MTPC240617.pdf).
 - Eglandin / alprostadil: [Tanabe Korea product information](https://kr.tanabe-pharma.com/sub02_02_view.html). PGE1 and lipo-PGE1 preset variants stay separate.
 - Dopamix / dopamine: [HK inno.N product-label notice](https://www.inno-n.com/pr/notice/medicine/view/26).
+- Herben / diltiazem: [HK inno.N product information](https://www.inno-n.com/business/medicine/view?bpc_cd=P107&no=191).
+- Perdipine / nicardipine: [ConnectDI injection information](https://www.connectdi.com/cont/drug/?dl_idx=4939&pap=detail).
+- Brevibloc / esmolol: [Jeil product-label change notice](https://www.jeilpharm.co.kr/jeilpharm/product_change_point_view.asp?codes=&idx=266&page=10&skey=&sword=).
+- Primacor / milrinone: [Sanofi Korea product information](https://www.sanofi.com/ko/south-korea/product-information/primacor-milrinone).
+- Esmeron / rocuronium: [Korea Pharmaceutical Information Center](https://www.health.kr/drug/2016120100047).
+- Vecaron / vecuronium: [Sejong Hospital formulary notice](https://hyewon.sejongh.co.kr/notice/9281). This historical name association does not establish current availability.
+- Pantoloc / pantoprazole: [Korea Pharmaceutical Information Center](https://www.health.kr/drug/A11ABBBBB2147).
+
+Only the seven selected additional brands above were added. Perlinganit, Vascam,
+Byfavo, Solu-Cortef, and Aggrastat were not selected; their existing ingredient
+presets remain unchanged.
 
 Other entries supply Korean spellings for existing generic names. Dobutamix is
 currently searchable by its existing name and Korean spelling only; its ingredient

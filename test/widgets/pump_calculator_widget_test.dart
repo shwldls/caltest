@@ -190,6 +190,18 @@ void main() {
     expect(find.text('신경계 중환자실'), findsOneWidget);
   });
 
+  testWidgets('Herben selects diltiazem and displays its Korean brand',
+      (tester) async {
+    await _openMicu(tester);
+    await _selectMedication(tester, 'HERBEN');
+    final selected = find.byKey(const Key('selected-medication-card'));
+    expect(selected, findsOneWidget);
+    expect(find.descendant(of: selected, matching: find.text('diltiazem 50mg')),
+        findsOneWidget);
+    expect(find.descendant(of: selected, matching: find.textContaining('헤르벤')),
+        findsOneWidget);
+  });
+
   testWidgets('ingredient search shows and selects the branded preset',
       (tester) async {
     await _openMicu(tester);
