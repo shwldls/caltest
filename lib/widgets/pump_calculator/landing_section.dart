@@ -25,21 +25,25 @@ class LandingSection extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final useSingleColumn = constraints.maxWidth < 360;
-              return GridView.count(
-                crossAxisCount: useSingleColumn ? 1 : 2,
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              return GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: useSingleColumn ? 1 : 2,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 16,
+                  mainAxisExtent: (useSingleColumn ? 100 : 158) * textScale,
+                ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: useSingleColumn ? 12 : 18,
-                crossAxisSpacing: 18,
-                childAspectRatio: useSingleColumn ? 2.65 : 1.35,
-                children: [
-                  for (final department in preset_data.defaultDepartments)
-                    DepartmentCard(
-                      department: department,
-                      useHorizontalLayout: useSingleColumn,
-                      onTap: () => onSelectDepartment(department.id),
-                    ),
-                ],
+                itemCount: preset_data.defaultDepartments.length,
+                itemBuilder: (context, index) {
+                  final department = preset_data.defaultDepartments[index];
+                  return DepartmentCard(
+                    department: department,
+                    useHorizontalLayout: useSingleColumn,
+                    onTap: () => onSelectDepartment(department.id),
+                  );
+                },
               );
             },
           ),
@@ -135,21 +139,21 @@ class _DepartmentCardText extends StatelessWidget {
           textAlign: textAlign,
           style: TextStyle(
             fontSize: 20,
-            height: 1.05,
-            fontWeight: FontWeight.w900,
+            height: 1.25,
+            fontWeight: FontWeight.w800,
             color: snoobiInk,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 6),
         Text(
           department.description,
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
           textAlign: textAlign,
           style: const TextStyle(
-            fontSize: 11.5,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            height: 1.4,
+            fontWeight: FontWeight.w500,
             color: Color(0xFF52606D),
           ),
         ),
@@ -179,8 +183,9 @@ class _PickBanner extends StatelessWidget {
               TextSpan(text: '계산할 부서를 선택해 주세요'),
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
                 color: snoobiInk,
               ),
             ),

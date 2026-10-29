@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/default_presets.dart' as preset_data;
 import 'models/drug_preset.dart';
+import 'services/drug_search.dart';
 import 'services/pump_calculator.dart';
 import 'services/preset_storage.dart';
-import 'utils/pump_calculator_text.dart';
 import 'widgets/pump_calculator/calculator_section.dart';
 import 'widgets/pump_calculator/landing_section.dart';
 import 'widgets/pump_calculator/layout_constants.dart';
@@ -61,6 +61,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
   final _presetSearchController = TextEditingController();
 
   final _nameController = TextEditingController();
+  final _searchAliasesController = TextEditingController();
   final _doseUnitController = TextEditingController();
   final _minDoseController = TextEditingController();
   final _maxDoseController = TextEditingController();
@@ -100,6 +101,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     _weightController.dispose();
     _presetSearchController.dispose();
     _nameController.dispose();
+    _searchAliasesController.dispose();
     _doseUnitController.dispose();
     _minDoseController.dispose();
     _maxDoseController.dispose();
@@ -178,29 +180,8 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     return null;
   }
 
-  List<DrugPreset> get _presetSearchResults {
-    final normalizedQuery = normalizeSearchText(_presetSearchQuery);
-    if (normalizedQuery.isEmpty) return _currentPresets;
-
-    final prefixMatches = <DrugPreset>[];
-    final containsMatches = <DrugPreset>[];
-
-    for (final preset in _currentPresets) {
-      final searchTerms = <String>[
-        normalizeSearchText(preset.name),
-        normalizeSearchText(presetDropdownLabel(preset.name)),
-        normalizeSearchText(mixDrugLabel(preset.name)),
-      ];
-
-      if (searchTerms.any((term) => term.startsWith(normalizedQuery))) {
-        prefixMatches.add(preset);
-      } else if (searchTerms.any((term) => term.contains(normalizedQuery))) {
-        containsMatches.add(preset);
-      }
-    }
-
-    return [...prefixMatches, ...containsMatches];
-  }
+  List<DrugPreset> get _presetSearchResults =>
+      searchDrugPresets(_currentPresets, _presetSearchQuery);
 
   void _applyDefaultResult([String? detail]) {
     _resultValue = '--';
@@ -272,6 +253,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     final preset = _selectedPreset;
     if (preset == null) {
       _nameController.clear();
+      _searchAliasesController.clear();
       _doseUnitController.clear();
       _minDoseController.clear();
       _maxDoseController.clear();
@@ -286,6 +268,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     }
 
     _nameController.text = preset.name;
+    _searchAliasesController.text = preset.searchAliases.join(', ');
     _doseUnitController.text = preset.doseUnit;
     _minDoseController.text = preset.minDose?.toString() ?? '';
     _maxDoseController.text = preset.maxDose?.toString() ?? '';
@@ -302,6 +285,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     setState(() {
       _isCreatingPreset = true;
       _nameController.clear();
+      _searchAliasesController.clear();
       _doseUnitController.clear();
       _minDoseController.clear();
       _maxDoseController.clear();
@@ -420,6 +404,7 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     final preset = DrugPreset(
       id: _isCreatingPreset ? uniqueId() : (_selectedPreset?.id ?? uniqueId()),
       name: _nameController.text.trim(),
+      searchAliases: parseSearchAliases(_searchAliasesController.text),
       doseUnit: normalizedDoseUnit,
       minDose: minDose,
       maxDose: maxDose,
@@ -560,55 +545,55 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
               child: _selectedDepartmentId == null
                   ? LandingSection(onSelectDepartment: _selectDepartment)
                   : CalculatorSection(
-                        departmentLabel: _currentDepartment?.label ?? '-',
-                        selectedPresetId: _selectedPresetId,
-                        selectedPreset: _selectedPreset,
-                        doseController: _doseController,
-                        weightController: _weightController,
-                        resultValue: _resultValue,
-                        resultDetail: _resultDetail,
-                        resultError: _resultError,
-                        resultDoseWarning: _resultDoseWarning,
-                        calculatorFormKey: _calculatorFormKey,
-                        presetSearchController: _presetSearchController,
-                        presetSearchQuery: _presetSearchQuery,
-                        presetSearchResults: _presetSearchResults,
-                        showPresetSearchResults: _isPresetSearchOpen,
-                        onPresetSearchTap: () {
-                          setState(() => _isPresetSearchOpen = true);
-                        },
-                        onPresetSearchChanged: (value) {
-                          setState(() {
-                            _presetSearchQuery = value;
-                            _isPresetSearchOpen = true;
-                          });
-                        },
-                        onPresetSearchSelected: (presetId) {
-                          _changeSelectedPreset(presetId);
-                        },
-                        onClearPresetSearch: () {
-                          setState(() => _clearPresetSearchState());
-                          _clearPresetSearchField();
-                          FocusManager.instance.primaryFocus?.unfocus();
-                        },
-                        onChangeDepartment: () {
-                          setState(() {
-                            _selectedDepartmentId = null;
-                            _selectedPresetId = null;
-                            _doseController.clear();
-                            _weightController.clear();
-                            _isCreatingPreset = false;
-                            _clearPresetSearchState();
-                            _applyDefaultResult();
-                          });
-                          _clearPresetSearchField();
-                          _saveState();
-                        },
-                        onStartNewPatient: _startNewPatient,
-                        onOpenSettings: _showPresetManager,
-                        onDoseChanged: _autoCalculate,
-                        onWeightChanged: _autoCalculate,
-                      ),
+                      departmentLabel: _currentDepartment?.label ?? '-',
+                      selectedPresetId: _selectedPresetId,
+                      selectedPreset: _selectedPreset,
+                      doseController: _doseController,
+                      weightController: _weightController,
+                      resultValue: _resultValue,
+                      resultDetail: _resultDetail,
+                      resultError: _resultError,
+                      resultDoseWarning: _resultDoseWarning,
+                      calculatorFormKey: _calculatorFormKey,
+                      presetSearchController: _presetSearchController,
+                      presetSearchQuery: _presetSearchQuery,
+                      presetSearchResults: _presetSearchResults,
+                      showPresetSearchResults: _isPresetSearchOpen,
+                      onPresetSearchTap: () {
+                        setState(() => _isPresetSearchOpen = true);
+                      },
+                      onPresetSearchChanged: (value) {
+                        setState(() {
+                          _presetSearchQuery = value;
+                          _isPresetSearchOpen = true;
+                        });
+                      },
+                      onPresetSearchSelected: (presetId) {
+                        _changeSelectedPreset(presetId);
+                      },
+                      onClearPresetSearch: () {
+                        setState(() => _clearPresetSearchState());
+                        _clearPresetSearchField();
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      },
+                      onChangeDepartment: () {
+                        setState(() {
+                          _selectedDepartmentId = null;
+                          _selectedPresetId = null;
+                          _doseController.clear();
+                          _weightController.clear();
+                          _isCreatingPreset = false;
+                          _clearPresetSearchState();
+                          _applyDefaultResult();
+                        });
+                        _clearPresetSearchField();
+                        _saveState();
+                      },
+                      onStartNewPatient: _startNewPatient,
+                      onOpenSettings: _showPresetManager,
+                      onDoseChanged: _autoCalculate,
+                      onWeightChanged: _autoCalculate,
+                    ),
             ),
           ),
         ),
@@ -809,6 +794,18 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            key: const Key('search-aliases-field'),
+            controller: _searchAliasesController,
+            minLines: 1,
+            maxLines: 3,
+            decoration: editorDecoration('추가 검색명 (선택)').copyWith(
+              hintText: '상품명, 성분명, 병원에서 쓰는 이름',
+              helperText: '쉼표로 구분해 등록하면 이 이름으로도 찾을 수 있어요.',
+              helperMaxLines: 2,
+            ),
           ),
           const SizedBox(height: 16),
           TextFormField(

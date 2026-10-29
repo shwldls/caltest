@@ -30,6 +30,7 @@ class DrugPreset {
     this.minDose,
     this.maxDose,
     this.rateIncrementMlPerHr = 0.1,
+    this.searchAliases = const [],
   });
 
   final String id;
@@ -44,6 +45,7 @@ class DrugPreset {
   final bool useWeight;
   final String note;
   final double rateIncrementMlPerHr;
+  final List<String> searchAliases;
 
   DrugPreset copy() {
     return DrugPreset(
@@ -59,6 +61,7 @@ class DrugPreset {
       useWeight: useWeight,
       note: note,
       rateIncrementMlPerHr: rateIncrementMlPerHr,
+      searchAliases: List.of(searchAliases),
     );
   }
 
@@ -76,6 +79,7 @@ class DrugPreset {
       'useWeight': useWeight,
       'note': note,
       'rateIncrementMlPerHr': rateIncrementMlPerHr,
+      'searchAliases': searchAliases,
     };
   }
 
@@ -96,6 +100,8 @@ class DrugPreset {
       note: (json['note'] as String?) ?? '',
       rateIncrementMlPerHr:
           ((json['rateIncrementMlPerHr'] as num?) ?? 0.1).toDouble(),
+      searchAliases:
+          (json['searchAliases'] as List?)?.cast<String>() ?? const [],
     );
   }
 
@@ -114,6 +120,10 @@ class DrugPreset {
         (json['id'] != null && json['id'] is! String) ||
         (json['minDose'] != null && json['minDose'] is! num) ||
         (json['maxDose'] != null && json['maxDose'] is! num) ||
+        (json['searchAliases'] != null &&
+            (json['searchAliases'] is! List ||
+                (json['searchAliases'] as List)
+                    .any((alias) => alias is! String))) ||
         (json['rateIncrementMlPerHr'] != null &&
             json['rateIncrementMlPerHr'] is! num)) {
       return null;

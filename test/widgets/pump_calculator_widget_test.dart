@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:micudrugtest/data/default_presets.dart';
 import 'package:micudrugtest/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +17,9 @@ void main() {
     expect(find.byKey(const Key('medication-required-banner')), findsOneWidget);
     expect(find.byKey(const Key('selected-medication-card')), findsNothing);
     expect(
-      tester.widget<TextFormField>(find.byKey(const Key('weight-field'))).enabled,
+      tester
+          .widget<TextFormField>(find.byKey(const Key('weight-field')))
+          .enabled,
       isFalse,
     );
     expect(
@@ -107,7 +110,8 @@ void main() {
     final details = find.byKey(const Key('calculation-details-tile'));
     expect(warning, findsOneWidget);
     expect(find.textContaining('권장 범위 밖입니다'), findsOneWidget);
-    expect(tester.getTopLeft(warning).dy, lessThan(tester.getTopLeft(details).dy));
+    expect(
+        tester.getTopLeft(warning).dy, lessThan(tester.getTopLeft(details).dy));
   });
 
   testWidgets('new patient clears weight dose result and medication', (
@@ -184,6 +188,99 @@ void main() {
     expect(find.text('외과계 중환자실'), findsOneWidget);
     expect(find.text('응급 중환자실2'), findsOneWidget);
     expect(find.text('신경계 중환자실'), findsOneWidget);
+  });
+
+  testWidgets('ingredient search shows and selects the branded preset',
+      (tester) async {
+    await _openMicu(tester);
+    await _selectMedication(tester, '덱스메데토미딘');
+    expect(find.byKey(const Key('selected-medication-card')), findsOneWidget);
+    expect(
+        find.descendant(
+          of: find.byKey(const Key('selected-medication-card')),
+          matching: find.textContaining('precedex'),
+        ),
+        findsOneWidget);
+    expect(find.textContaining('프리세덱스'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Enter never picks an arbitrary concentration from multiple results',
+      (tester) async {
+    await _openMicu(tester);
+    await tester.enterText(
+        find.byKey(const Key('preset-search-field')), '디프리반');
+    await tester.pumpAndSettle();
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('selected-medication-card')), findsNothing);
+    expect(find.byKey(const Key('preset-results-list')), findsOneWidget);
+  });
+
+  testWidgets(
+      'the complete medication list remains scrollable beyond six items',
+      (tester) async {
+    await _openMicu(tester);
+    await tester.tap(find.byKey(const Key('preset-search-field')));
+    await tester.pumpAndSettle();
+    final lastPreset = defaultDepartments.first.presets.last;
+    final lastResult =
+        find.byKey(ValueKey('preset-search-result-${lastPreset.id}'));
+    final listScrollable = find.descendant(
+      of: find.byKey(const Key('preset-results-list')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.ensureVisible(find.byKey(const Key('preset-results-list')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(lastResult, 240,
+        scrollable: listScrollable, maxScrolls: 50);
+    await tester.tap(lastResult);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('selected-medication-card')), findsOneWidget);
+    expect(find.text(lastPreset.name), findsOneWidget);
+  });
+
+  testWidgets('custom search names can be saved and found after reloading',
+      (tester) async {
+    await _openMicu(tester);
+    await _selectMedication(tester, 'propofol 1g/50mL');
+    final settings = find.byKey(const Key('open-settings-button'));
+    await tester.ensureVisible(settings);
+    await tester.tap(settings);
+    await tester.pumpAndSettle();
+    final aliases = find.byKey(const Key('search-aliases-field'));
+    await tester.ensureVisible(aliases);
+    await tester.enterText(aliases, '우리병원상품명, 추가성분명');
+    final save = find.text('선택 약물 수정');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('설정 닫기'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(const JjonddeukCalculatorApp());
+    await tester.pumpAndSettle();
+    await _selectMedication(tester, '우리병원상품명');
+    expect(find.textContaining('1 g / 50 mL'), findsWidgets);
+    expect(find.textContaining('추가성분명'), findsOneWidget);
+  });
+
+  testWidgets(
+      'large text at 320 pixels keeps landing search and details readable',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 1100));
+    tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+    addTearDown(() {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      tester.binding.setSurfaceSize(null);
+    });
+    await _openMicu(tester);
+    await _selectMedication(tester, '덱스메데토미딘');
+    final details = find.byKey(const Key('calculation-details-tile'));
+    await tester.ensureVisible(details);
+    await tester.tap(details);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }
 

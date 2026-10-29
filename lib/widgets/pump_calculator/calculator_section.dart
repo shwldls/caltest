@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/drug_names.dart';
 import '../../models/drug_preset.dart';
 import '../../services/pump_calculator.dart';
 import '../../utils/pump_calculator_text.dart';
@@ -89,10 +90,10 @@ class CalculatorSection extends StatelessWidget {
                 child: Text(
                   '환자가 바뀌면 이전 체중을 지워 주세요.',
                   style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF555555),
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    color: snoobiMuted,
                   ),
                 ),
               ),
@@ -117,20 +118,22 @@ class CalculatorSection extends StatelessWidget {
               children: [
                 Semantics(
                   textField: true,
-                  label: '약물 검색 및 선택',
+                  label: '상품명 또는 성분명으로 약물 검색 및 선택',
                   child: TextField(
                     key: const Key('preset-search-field'),
                     controller: presetSearchController,
                     onTap: onPresetSearchTap,
                     textInputAction: TextInputAction.search,
+                    autocorrect: false,
+                    style: const TextStyle(fontSize: 16, height: 1.4),
                     onChanged: onPresetSearchChanged,
                     onSubmitted: (_) {
-                      if (presetSearchResults.isNotEmpty) {
+                      if (presetSearchResults.length == 1) {
                         onPresetSearchSelected(presetSearchResults.first.id);
                       }
                     },
                     decoration: rowDecoration(
-                      hint: '약물명을 검색하거나 눌러서 목록 열기',
+                      hint: '상품명 또는 성분명 검색',
                     ).copyWith(
                       prefixIcon: const Icon(
                         Icons.search_rounded,
@@ -147,6 +150,17 @@ class CalculatorSection extends StatelessWidget {
                               Icons.arrow_drop_down_rounded,
                               color: snoobiInk,
                             ),
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '한글·영문 모두 검색할 수 있어요. 농도를 확인한 뒤 선택해 주세요.',
+                      style: TextStyle(
+                          fontSize: 12.5, height: 1.5, color: snoobiMuted),
                     ),
                   ),
                 ),
@@ -169,6 +183,8 @@ class CalculatorSection extends StatelessWidget {
                   child: TextFormField(
                     key: const Key('weight-field'),
                     controller: weightController,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
                     enabled: preset?.useWeight ?? false,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
@@ -203,6 +219,8 @@ class CalculatorSection extends StatelessWidget {
                   child: TextFormField(
                     key: const Key('dose-field'),
                     controller: doseController,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
                     enabled: preset != null,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
@@ -296,7 +314,7 @@ class _MedicationRequiredBanner extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.35,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: snoobiInk,
                 ),
               ),
@@ -328,7 +346,7 @@ class _SelectedMedicationCard extends StatelessWidget {
       child: Container(
         key: const Key('selected-medication-card'),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.all(16),
         decoration: roundedDecoration(color: const Color(0xFFE8F7FF)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,23 +359,24 @@ class _SelectedMedicationCard extends StatelessWidget {
                 color: Color(0xFF52606D),
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 6),
             Text(
               presetDropdownLabel(preset.name),
               style: const TextStyle(
-                fontSize: 17,
-                height: 1.2,
-                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                height: 1.4,
+                fontWeight: FontWeight.w800,
                 color: snoobiInk,
               ),
             ),
-            const SizedBox(height: 4),
+            _DrugAlternateNames(preset: preset),
+            const SizedBox(height: 10),
             Text(
               summary,
               style: const TextStyle(
-                fontSize: 13.5,
-                height: 1.3,
-                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
                 color: snoobiInk,
               ),
             ),
@@ -412,7 +431,7 @@ class ResultStatusBanner extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.4,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: color,
                 ),
               ),
@@ -437,14 +456,13 @@ class _PresetSearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleResults = results.take(6).toList();
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: snoobiPaper,
-        border: Border.all(color: snoobiInk, width: 1.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: snoobiBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,34 +478,44 @@ class _PresetSearchResults extends StatelessWidget {
           if (results.isEmpty) ...[
             const SizedBox(height: 6),
             const Text(
-              '약물명이나 약물 구분어로 다시 검색해 보세요.',
+              '이 부서에 등록된 상품명·성분명으로 다시 검색해 보세요.',
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF667085),
+                fontSize: 13,
+                height: 1.5,
+                fontWeight: FontWeight.w400,
+                color: snoobiMuted,
               ),
             ),
           ] else ...[
             const SizedBox(height: 10),
-            for (final preset in visibleResults) ...[
-              _PresetSearchResultTile(
-                preset: preset,
-                selected: preset.id == selectedPresetId,
-                onTap: () => onSelected(preset.id),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: ListView.separated(
+                key: const Key('preset-results-list'),
+                primary: false,
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: results.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final preset = results[index];
+                  return _PresetSearchResultTile(
+                    preset: preset,
+                    selected: preset.id == selectedPresetId,
+                    onTap: () => onSelected(preset.id),
+                  );
+                },
               ),
-              if (preset != visibleResults.last) const SizedBox(height: 8),
-            ],
-            if (results.length > visibleResults.length) ...[
-              const SizedBox(height: 10),
-              Text(
-                '외 ${results.length - visibleResults.length}개 더 있어요. 검색어를 조금 더 입력해 보세요.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF667085),
+            ),
+            if (results.length > 3)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  '목록을 스크롤해 다른 농도도 확인하세요.',
+                  style:
+                      TextStyle(fontSize: 12, height: 1.4, color: snoobiMuted),
                 ),
               ),
-            ],
           ],
         ],
       ),
@@ -510,9 +538,11 @@ class _PresetSearchResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       key: ValueKey('preset-search-result-${preset.id}'),
-      color: selected ? const Color(0xFFE8F7FF) : const Color(0xFFFFFCDA),
+      color: selected ? const Color(0xFFE8F7FF) : const Color(0xFFFFFBDF),
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
@@ -524,13 +554,14 @@ class _PresetSearchResultTile extends StatelessWidget {
                     Text(
                       presetDropdownLabel(preset.name),
                       style: const TextStyle(
-                        fontSize: 14.5,
-                        height: 1.2,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        height: 1.4,
+                        fontWeight: FontWeight.w800,
                         color: snoobiInk,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    _DrugAlternateNames(preset: preset),
+                    const SizedBox(height: 8),
                     Text(
                       reservoirSummary(
                         drugAmount: preset.drugAmount,
@@ -539,9 +570,9 @@ class _PresetSearchResultTile extends StatelessWidget {
                         doseUnit: preset.doseUnit,
                       ),
                       style: const TextStyle(
-                        fontSize: 12.5,
-                        height: 1.3,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
                         color: Color(0xFF52606D),
                       ),
                     ),
@@ -556,6 +587,36 @@ class _PresetSearchResultTile extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DrugAlternateNames extends StatelessWidget {
+  const _DrugAlternateNames({required this.preset});
+
+  final DrugPreset preset;
+
+  @override
+  Widget build(BuildContext context) {
+    final names = namesForDrug(preset.name);
+    final labels = <String>[
+      if (names != null) names.description,
+      if (names != null)
+        ...names.brands.where((name) => RegExp(r'[가-힣]').hasMatch(name)),
+      ...preset.searchAliases,
+    ];
+    if (labels.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        labels.join(' · '),
+        style: const TextStyle(
+          fontSize: 13,
+          height: 1.5,
+          fontWeight: FontWeight.w400,
+          color: snoobiMuted,
         ),
       ),
     );
@@ -586,12 +647,13 @@ class _NoteBoard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InfoLine(label: 'Mix', value: mixLine),
-            const SizedBox(height: 12),
-            _InfoLine(label: 'Range', value: rangeText),
+            _InfoLine(label: '희석 정보', value: mixLine),
+            const SizedBox(height: 18),
+            _InfoLine(label: '권장 범위', value: rangeText),
             const SizedBox(height: 6),
             Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 key: const Key('calculation-details-tile'),
                 tilePadding: EdgeInsets.zero,
@@ -600,7 +662,7 @@ class _NoteBoard extends StatelessWidget {
                   '계산 근거 및 주석 보기',
                   style: TextStyle(
                     fontSize: 13.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: snoobiInk,
                   ),
                 ),
@@ -628,39 +690,26 @@ class _InfoLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '• ',
-          style: TextStyle(
-            fontSize: 17,
-            height: 1,
-            fontWeight: FontWeight.w900,
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            fontWeight: FontWeight.w700,
             color: snoobiInk,
           ),
         ),
-        SizedBox(
-          width: 52,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.25,
-              fontWeight: FontWeight.w900,
-              color: snoobiInk,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              fontWeight: FontWeight.w800,
-              color: snoobiInk,
-            ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.6,
+            fontWeight: FontWeight.w400,
+            color: snoobiInk,
           ),
         ),
       ],

@@ -30,6 +30,7 @@ List<DrugPreset> ensureUniquePresetIds(List<DrugPreset> presets) {
       useWeight: preset.useWeight,
       note: preset.note,
       rateIncrementMlPerHr: preset.rateIncrementMlPerHr,
+      searchAliases: List.of(preset.searchAliases),
     );
   }).toList();
 }
@@ -132,6 +133,7 @@ List<DrugPreset> replaceLegacyMicuPropofolLabel(List<DrugPreset> presets) {
       useWeight: preset.useWeight,
       note: preset.note,
       rateIncrementMlPerHr: preset.rateIncrementMlPerHr,
+      searchAliases: List.of(preset.searchAliases),
     );
   }).toList();
 }

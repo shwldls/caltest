@@ -10,6 +10,8 @@ const snoobiInk = Color(0xFF171717);
 const snoobiCream = Color(0xFFFFF8B9);
 const snoobiBlue = Color(0xFFAED9EC);
 const snoobiPink = Color(0xFFFFA7D4);
+const snoobiMuted = Color(0xFF52606D);
+const snoobiBorder = Color(0xFFC5CFD2);
 
 class SnoobiAsset {
   const SnoobiAsset._();
@@ -32,10 +34,11 @@ class ThemedBoard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: snoobiPaper,
-        border: Border.all(color: snoobiInk, width: 2.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: snoobiInk, width: 1.8),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
         child: child,
       ),
     );
@@ -57,7 +60,7 @@ class CloudHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = titleSize < 40;
-    final height = compact ? 178.0 : 300.0;
+    final height = compact ? 164.0 : 272.0;
 
     return SizedBox(
       height: height,
@@ -66,8 +69,8 @@ class CloudHeader extends StatelessWidget {
         children: [
           Positioned.fill(child: CustomPaint(painter: _CloudPainter())),
           Positioned(
-              left: compact ? 18 : 28,
-              top: compact ? 18 : 34,
+            left: compact ? 18 : 28,
+            top: compact ? 18 : 34,
             child: Image.asset(
               SnoobiAsset.catMagnifier,
               width: compact ? 56 : 96,
@@ -75,8 +78,8 @@ class CloudHeader extends StatelessWidget {
             ),
           ),
           Positioned(
-              right: compact ? 14 : 26,
-              top: compact ? 28 : 70,
+            right: compact ? 14 : 26,
+            top: compact ? 28 : 70,
             child: Image.asset(
               SnoobiAsset.dogMegaphone,
               width: compact ? 56 : 96,
@@ -84,24 +87,24 @@ class CloudHeader extends StatelessWidget {
             ),
           ),
           Positioned(
-              left: compact ? 106 : 142,
-              top: compact ? 48 : 124,
+            left: compact ? 106 : 142,
+            top: compact ? 48 : 124,
             child: _DecorationAsset(
               path: SnoobiAsset.star,
               size: compact ? 16 : 28,
             ),
           ),
           Positioned(
-              right: compact ? 62 : 46,
-              top: compact ? 30 : 86,
+            right: compact ? 62 : 46,
+            top: compact ? 30 : 86,
             child: _DecorationAsset(
               path: SnoobiAsset.star,
               size: compact ? 15 : 25,
             ),
           ),
           Positioned(
-              left: compact ? 10 : 18,
-              top: compact ? 72 : 112,
+            left: compact ? 10 : 18,
+            top: compact ? 72 : 112,
             child: _DecorationAsset(
               path: SnoobiAsset.bubbleSingle,
               size: compact ? 24 : 40,
@@ -120,8 +123,16 @@ class CloudHeader extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-              top: compact ? 20 : 54,
-            child: Center(child: _TitleStack(fontSize: titleSize)),
+            top: compact ? 20 : 54,
+            child: Center(
+              child: SizedBox(
+                height: compact ? 82 : 168,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _TitleStack(fontSize: titleSize),
+                ),
+              ),
+            ),
           ),
           if (subtitle != null)
             Positioned(
@@ -157,10 +168,10 @@ class HandDrawnDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 2,
+      height: 1,
       width: double.infinity,
-      color: snoobiInk,
-      margin: const EdgeInsets.symmetric(vertical: 14),
+      color: snoobiBorder,
+      margin: const EdgeInsets.symmetric(vertical: 20),
     );
   }
 }
@@ -204,6 +215,7 @@ class CurrentDepartmentBox extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 48),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: snoobiInk, width: 1.5),
@@ -212,7 +224,7 @@ class CurrentDepartmentBox extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '$title 선택중',
+                  '$title 선택 중',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -222,6 +234,9 @@ class CurrentDepartmentBox extends StatelessWidget {
                   ),
                 ),
               ),
+              const Text('부서 변경',
+                  style: TextStyle(fontSize: 12, color: snoobiMuted)),
+              const SizedBox(width: 6),
               const Icon(Icons.swap_horiz_rounded, size: 18, color: snoobiInk),
             ],
           ),
@@ -249,10 +264,11 @@ class CalculatorRow extends StatelessWidget {
       container: true,
       label: '$label 영역',
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final useStackedLayout = constraints.maxWidth < 350;
+            final useStackedLayout = constraints.maxWidth < 380 ||
+                MediaQuery.textScalerOf(context).scale(14) > 18;
             final inputRow = Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -269,7 +285,7 @@ class CalculatorRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(width: 112, child: LabelPill(text: label)),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 10),
                   inputRow,
                 ],
               );
@@ -298,23 +314,21 @@ class LabelPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      constraints: const BoxConstraints(minHeight: 36),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: snoobiCream,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: snoobiInk, width: 1.4),
+        border: Border.all(color: snoobiInk, width: 1),
       ),
       alignment: Alignment.center,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            color: snoobiInk,
-          ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: snoobiInk,
         ),
       ),
     );
@@ -331,13 +345,11 @@ class UnitLabel extends StatelessWidget {
     return CalculatorSuffixSlot(
       child: Text(
         text.replaceAll('/', '/\u200B'),
-        maxLines: 2,
-        overflow: TextOverflow.visible,
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: calculatorUnitFontSize,
-          height: 1.1,
-          fontWeight: FontWeight.w900,
+          height: 1.4,
+          fontWeight: FontWeight.w600,
           color: snoobiInk,
         ),
       ),
@@ -403,13 +415,15 @@ class ResultBox extends StatelessWidget {
       liveRegion: true,
       label: isWarning ? '주의가 필요한 계산 결과 $value mL/hr' : '계산된 주입속도 $value mL/hr',
       child: Container(
-        constraints: const BoxConstraints(minHeight: 42),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        constraints: const BoxConstraints(minHeight: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isWarning ? const Color(0xFFFFF0ED) : const Color(0xFFEDF8FC),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isWarning ? const Color(0xFFC12828) : snoobiInk,
-            width: 1.7,
+            color:
+                isWarning ? const Color(0xFFC12828) : const Color(0xFF0F6784),
+            width: 1.5,
           ),
         ),
         alignment: Alignment.centerLeft,
@@ -418,9 +432,11 @@ class ResultBox extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            color: isWarning ? const Color(0xFFC12828) : snoobiInk,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color:
+                isWarning ? const Color(0xFFC12828) : const Color(0xFF0F6784),
           ),
         ),
       ),
@@ -482,14 +498,15 @@ InputDecoration rowDecoration({String? hint}) {
     fillColor: Colors.white,
     isDense: true,
     hintStyle: const TextStyle(
-      fontSize: 13,
-      fontWeight: FontWeight.w800,
-      color: Color(0xFF555555),
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: snoobiMuted,
     ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
     border: roundedInputBorder(),
     enabledBorder: roundedInputBorder(),
-    focusedBorder: roundedInputBorder(color: snoobiBlue, width: 2.2),
+    focusedBorder: roundedInputBorder(color: const Color(0xFF0F6784), width: 2),
+    errorMaxLines: 3,
   );
 }
 
@@ -502,7 +519,7 @@ InputDecoration editorDecoration(String label) {
     border: roundedInputBorder(radius: 10),
     enabledBorder: roundedInputBorder(radius: 10),
     focusedBorder: roundedInputBorder(
-      color: snoobiBlue,
+      color: const Color(0xFF0F6784),
       radius: 10,
       width: 2.2,
     ),
@@ -510,9 +527,9 @@ InputDecoration editorDecoration(String label) {
 }
 
 OutlineInputBorder roundedInputBorder({
-  Color color = snoobiInk,
-  double radius = 0,
-  double width = 1.6,
+  Color color = snoobiBorder,
+  double radius = 10,
+  double width = 1.2,
 }) {
   return OutlineInputBorder(
     borderRadius: BorderRadius.circular(radius),
