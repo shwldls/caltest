@@ -1,6 +1,6 @@
 // Original educational prescriptions; dilutions are NOT confirmed hospital standards.
 // All volumes are FINAL solution volumes, not diluent volumes.
-export const VERSION = '3.2.0';
+export const VERSION = '3.3.0';
 export const DRUGS = Object.freeze({
   norepi: { name: 'Norepinephrine', amount: 6, unit: 'mg', volume: 200 },
   vaso: { name: 'Vasopressin', amount: 40, unit: 'units', volume: 100 },
@@ -29,7 +29,8 @@ export const ROOMS = [
 // show a different mixture from the one used for the calculation.
 const numberFormatter = new Intl.NumberFormat('en-US', { useGrouping: false, maximumSignificantDigits: 12 });
 export const format = n => numberFormatter.format(n);
-export const roundAnswer = n => Math.round((n + Number.EPSILON * Math.abs(n) * 4) * 100) / 100;
+export const roundAnswer = n => Math.round((n + Number.EPSILON * Math.abs(n) * 4) * 10) / 10;
+export const formatAnswer = n => n.toFixed(1);
 export function defaultDilutions() { return Object.fromEntries(Object.entries(DRUGS).map(([key, d]) => [key, { amount: d.amount, volume: d.volume }])); }
 export function validateDilutions(input) {
   const result = defaultDilutions();
@@ -54,7 +55,7 @@ export function calculate(room, step, dilutions) {
   return { raw, answer: roundAnswer(raw), concentration, unit, hourlyDose,
     mixLabel: `${format(mix.amount)} ${drug.unit} / 최종 ${format(mix.volume)} mL`,
     formula: `(${numerator}) ÷ (${format(mix.amount * massFactor)} ÷ ${format(mix.volume)})`,
-    explanation: `${format(mix.amount)} ${drug.unit}${massFactor === 1000 ? ` = ${format(mix.amount * 1000)} mcg` : ''} → 농도 약 ${format(concentration)} ${unit}/mL. 시간당 용량 ${format(hourlyDose)} ${unit}/hr ÷ 농도 = ${format(roundAnswer(raw))} mL/hr.`,
+    explanation: `${format(mix.amount)} ${drug.unit}${massFactor === 1000 ? ` = ${format(mix.amount * 1000)} mcg` : ''} → 농도 약 ${format(concentration)} ${unit}/mL. 시간당 용량 ${format(hourlyDose)} ${unit}/hr ÷ 농도 = ${formatAnswer(roundAnswer(raw))} mL/hr.`,
     hints: [`먼저 희석액의 농도를 ${unit}/mL 단위로 구해 보세요.${massFactor === 1000 ? ' 1 mg = 1,000 mcg예요.' : ''}`, `${weighted !== 1 ? `체중 ${room.weight} kg을 곱하고, ` : ''}${minutes !== 1 ? '분당 용량에 60을 곱해 시간당 용량으로 바꾸세요.' : '이미 시간당 처방이므로 60을 곱하지 않아요.'}`, `주입 속도 = ${numerator} ÷ (${format(mix.amount * massFactor)} ÷ ${format(mix.volume)})`],
   };
 }
@@ -94,7 +95,7 @@ export class QuestSession {
     const value = parseAnswer(input);
     if (value === null) return { status: 'invalid' };
     this.attempts++;
-    if (Math.abs(value - this.result.answer) >= 0.005 - 1e-9) return { status: 'incorrect' };
+    if (value !== this.result.answer) return { status: 'incorrect' };
     this.records.push({ drug: this.step.drug, label: this.step.label, answer: this.result.answer, attempts: this.attempts, hints: this.hintsUsed });
     this.phase = 'correct';
     return { status: 'correct' };
