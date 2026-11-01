@@ -1,8 +1,10 @@
-import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=3.0.0';
+import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=3.1.0';
 
 const $ = id => document.getElementById(id);
 const game = $('game'), view = $('view');
-const STORE = 'micu-quest:settings:v2';
+// New defaults revision starts every browser with the exhibition owner's settings.
+// Subsequent user edits persist within this revision; calculator storage is untouched.
+const STORE = 'micu-quest:settings:v3.1';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let settings = { dilutions: defaultDilutions(), speed: 26, sound: false };
 try {

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DRUGS, ROOMS, QuestSession, calculate, defaultDilutions, format, parseAnswer, roundAnswer, validateDilutions } from '../core.mjs';
 
-const expected = [[37.5,9],[10,33.33,16.67],[7,5.25]];
+const expected = [[20,4.5],[10,33.33,16.67],[7,4.2]];
 test('all seven preserved prescriptions produce independently verified rates', () => {
   const mix = defaultDilutions();
   for (const [r,room] of ROOMS.entries()) for (const [i,step] of room.steps.entries()) {
@@ -11,7 +11,7 @@ test('all seven preserved prescriptions produce independently verified rates', (
 });
 test('mass conversion, weight and time bases are not interchangeable', () => {
   const mix = defaultDilutions();
-  assert.equal(calculate(ROOMS[0],ROOMS[0].steps[0],mix).concentration,16);
+  assert.equal(calculate(ROOMS[0],ROOMS[0].steps[0],mix).concentration,30);
   assert.equal(calculate(ROOMS[2],ROOMS[2].steps[0],mix).hourlyDose,28);
   assert.equal(calculate(ROOMS[2],ROOMS[2].steps[1],mix).hourlyDose,210);
   assert.equal(calculate(ROOMS[1],ROOMS[1].steps[0],mix).hourlyDose,10);
@@ -71,7 +71,7 @@ test('rounding accepts two decimals and rejects clinically significant wrong rat
   assert.equal(q.submit('33.34').status,'incorrect');
   assert.equal(q.submit('33.33').status,'correct');
   const q2=new QuestSession();q2.choose(0);q2.phase='mission';
-  assert.equal(q2.submit('37.50').status,'correct');
+  assert.equal(q2.submit('20.00').status,'correct');
 });
 test('replay clears per-room attempts and hints without losing completed-room collection', () => {
   const q=new QuestSession();q.completed.add(2);q.choose(0);q.phase='mission';q.hint();q.submit('5');q.choose(0);
