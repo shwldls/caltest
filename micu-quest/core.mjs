@@ -1,13 +1,13 @@
 // Original educational prescriptions; dilutions are NOT confirmed hospital standards.
 // All volumes are FINAL solution volumes, not diluent volumes.
-export const VERSION = '3.0.0';
+export const VERSION = '3.1.0';
 export const DRUGS = Object.freeze({
-  norepi: { name: 'Norepinephrine', amount: 4, unit: 'mg', volume: 250 },
-  vaso: { name: 'Vasopressin', amount: 20, unit: 'units', volume: 100 },
+  norepi: { name: 'Norepinephrine', amount: 6, unit: 'mg', volume: 200 },
+  vaso: { name: 'Vasopressin', amount: 40, unit: 'units', volume: 100 },
   dilt: { name: 'Herben (Diltiazem)', amount: 100, unit: 'mg', volume: 100 },
   amio: { name: 'Amiodarone', amount: 900, unit: 'mg', volume: 500 },
-  dex: { name: 'Precedex', amount: 200, unit: 'mcg', volume: 50 },
-  remi: { name: 'Remifentanil', amount: 2, unit: 'mg', volume: 50 },
+  dex: { name: 'Precedex', amount: 400, unit: 'mcg', volume: 100 },
+  remi: { name: 'Remifentanil', amount: 2, unit: 'mg', volume: 40 },
 });
 export const ROOMS = [
   { id: 0, title: '패혈성 쇼크', subtitle: '혈압을 지키는 첫 번째 계산', patient: '68세 남자 · 담관염', weight: 68, badge: 'CIRCULATION', color: 'mint', vitals: ['MAP', '58', 'mmHg'], summary: 'Norepinephrine → Vasopressin', steps: [
