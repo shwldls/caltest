@@ -44,3 +44,6 @@ body{background:var(--deep)}.page-top{display:none}.page-footer{max-width:none;p
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.speech.typing:after{display:none}.game .scene{filter:none!important}}
 /* Keep the small ward-selection heading readable against the equipment. */
 @media(min-width:761px){.selection-heading{padding:12px;background:#16344bd9;border-left:3px solid var(--mint);width:215px;left:3%}.selection-heading h1{font-size:25px;word-break:keep-all}.selection-heading .eyebrow{font-size:7px}.game[data-view=select] .actors{left:39%;top:43%}}
+
+/* A visible sound label makes the optional effects control understandable. */
+#sound-toggle{width:auto;display:flex;gap:5px;padding:0 8px}.sound-label{font-size:10px;white-space:nowrap}#sound-toggle[aria-pressed=true]{background:#315b56;border-color:var(--mint)}

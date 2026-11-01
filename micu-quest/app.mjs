@@ -1,4 +1,4 @@
-import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=3.1.0';
+import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=3.2.0';
 
 const $ = id => document.getElementById(id);
 const game = $('game'), view = $('view');
@@ -33,24 +33,27 @@ function toast(message) {
   clearTimeout(toastTimer); $('toast').textContent = message; $('toast').classList.add('show');
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3600);
 }
-function sound(kind = 'click') {
-  if (!settings.sound) return;
+async function sound(kind = 'click') {
+  if (!settings.sound) return false;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume().catch(() => {});
+    if (audio.state !== 'running') await audio.resume();
+    if (!settings.sound || audio.state !== 'running') return false;
     const notes = kind === 'success' ? [523, 659, 784] : kind === 'wrong' ? [196, 164] : [540];
     notes.forEach((frequency, i) => {
       const oscillator = audio.createOscillator(), gain = audio.createGain(), at = audio.currentTime + i * .09;
       oscillator.type = 'sine'; oscillator.frequency.value = frequency;
       gain.gain.setValueAtTime(.0001, at); gain.gain.exponentialRampToValueAtTime(.055, at + .012); gain.gain.exponentialRampToValueAtTime(.0001, at + .14);
       oscillator.connect(gain); gain.connect(audio.destination); oscillator.start(at); oscillator.stop(at + .15);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     });
-  } catch { /* Audio is optional, including on iOS silent/blocked playback. */ }
+    return true;
+  } catch { return false; /* Audio must never block game progression. */ }
 }
 function updateSoundButton() {
   $('sound-toggle').setAttribute('aria-pressed', String(settings.sound));
   $('sound-toggle').setAttribute('aria-label', settings.sound ? '효과음 끄기' : '효과음 켜기');
-  $('sound-toggle').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z${settings.sound ? 'M17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14' : 'M17 9l4 6m0-6-4 6'}"/></svg>`;
+  $('sound-toggle').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z${settings.sound ? 'M17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14' : 'M17 9l4 6m0-6-4 6'}"/></svg><span class="sound-label">소리 ${settings.sound ? '켬' : '끔'}</span>`;
 }
 function stopTyping() {
   cancelAnimationFrame(typeFrame); typeGeneration++; typing = false;
@@ -100,8 +103,7 @@ function setView(name) {
   window.scrollTo(0, 0);
   if (session.roomId !== null) game.dataset.room = String(session.roomId); else delete game.dataset.room;
   $('bed-marker').textContent = session.roomId === null ? '' : bedNo(session.roomId);
-  const solved = [...completedRecords.values()].flat().length;
-  $('shift-label').innerHTML = session.roomId === null ? `SHIFT 01 <i></i> ${solved} / 7 CLEAR` : `ROOM ${bedNo(session.roomId)} <i></i> ${session.stepIndex + 1}/${session.room.steps.length}`;
+  $('shift-label').innerHTML = session.roomId === null ? 'SHIFT 01 <i></i> READY' : `ROOM ${bedNo(session.roomId)} <i></i> ${session.stepIndex + 1}/${session.room.steps.length}`;
   $('scene-caption').hidden = !['home', 'select'].includes(name);
 }
 function homeView() {
@@ -110,7 +112,7 @@ function homeView() {
 }
 function selectView() {
   setView('select');
-  view.innerHTML = `<div class="ward-hotspots" aria-label="침상에서 환자 선택">${ROOMS.map(r => `<button type="button" class="bed-hotspot" data-room="${r.id}" aria-label="${bedNo(r.id)}번 침상 ${r.title}"><span>${bedNo(r.id)}</span><i aria-hidden="true">▼</i></button>`).join('')}</div><div class="selection-heading entrance"><span class="eyebrow light">PATIENT SELECT / ${session.completed.size} OF 3 COMPLETE</span><h1>어느 병실부터 가볼까요?</h1><p>침상이나 아래 카드를 눌러 주세요.</p></div><div class="room-grid entrance">${ROOMS.map(r => `<button type="button" class="room-card ${r.color} ${session.completed.has(r.id) ? 'completed' : ''}" data-room="${r.id}" aria-label="${bedNo(r.id)}호실 ${r.title}${session.completed.has(r.id) ? ' 다시 도전' : ''}"><div class="room-top"><span class="room-number">ROOM <b>${bedNo(r.id)}</b></span><span class="room-badge">${session.completed.has(r.id) ? 'COMPLETE' : r.badge}</span></div><div class="room-card-body"><h2>${r.title}</h2><p>${r.subtitle}</p><span class="room-drugs">${r.summary}</span></div><div class="room-card-footer"><span>${r.steps.length}개의 계산 미션</span><span class="room-enter">${session.completed.has(r.id) ? '다시 도전' : '병실 입장'} ${arrow}</span></div></button>`).join('')}</div><div class="selection-bottom"><p>같은 처방도, 단위를 한 번 더 확인하기.</p><button class="btn glass" type="button" data-action="random">랜덤 배정 <span aria-hidden="true">↗</span></button></div>`;
+  view.innerHTML = `<div class="ward-hotspots" aria-label="침상에서 환자 선택">${ROOMS.map(r => `<button type="button" class="bed-hotspot" data-room="${r.id}" aria-label="${bedNo(r.id)}번 침상 ${r.title}"><span>${bedNo(r.id)}</span><i aria-hidden="true">▼</i></button>`).join('')}</div><div class="selection-heading entrance"><span class="eyebrow light">PATIENT SELECT / 환자 선택</span><h1>어느 병실부터 가볼까요?</h1><p>침상이나 아래 카드를 눌러 주세요.</p></div><div class="room-grid entrance">${ROOMS.map(r => `<button type="button" class="room-card ${r.color}" data-room="${r.id}" aria-label="${bedNo(r.id)}호실 ${r.title}"><div class="room-top"><span class="room-number">ROOM <b>${bedNo(r.id)}</b></span><span class="room-badge">${r.badge}</span></div><div class="room-card-body"><h2>${r.title}</h2><p>${r.subtitle}</p><span class="room-drugs">${r.summary}</span></div><div class="room-card-footer"><span>${r.steps.length}개의 계산 미션</span><span class="room-enter">병실 입장 ${arrow}</span></div></button>`).join('')}</div><div class="selection-bottom"><p>같은 처방도, 단위를 한 번 더 확인하기.</p><button class="btn glass" type="button" data-action="random">랜덤 배정 <span aria-hidden="true">↗</span></button></div>`;
 }
 function chapter() {
   const room = session.room;
@@ -134,7 +136,7 @@ function completeView(all = false) {
   setView(all ? 'allcomplete' : 'complete');
   const room = session.room;
   const records = all ? [...completedRecords.values()].flat() : session.records;
-  view.innerHTML = `<section class="completion-panel entrance"><div class="complete-portrait">${art('nurse', '', '담당 간호사 픽셀 초상화')}</div><div class="completion-content"><span class="eyebrow">${all ? 'ALL MISSIONS COMPLETE' : `ROOM ${bedNo(room.id)} / COMPLETE`}</span><div class="clear-stamp">${checkIcon}<span>SHIFT<br>CLEAR</span></div><h1>${all ? '오늘의 근무, 무사히 완료!' : '이 병실의 미션을 마쳤어요.'}</h1><p class="completion-message">${all ? '세 명의 환자, 일곱 번의 꼼꼼한 계산.<br>함께해 줘서 고마워요. 당신의 다음 근무도 응원할게요.' : `${room.title}<br>단위를 살피고, 계산하고, 다시 확인하는 한 걸음.`}</p><div class="completion-stats"><span><b>${records.length}</b>완료 미션</span><span><b>${records.filter(r=>r.attempts===1).length}</b>첫 시도 성공</span><span><b>${session.completed.size}<small>/ 3</small></b>완료 병실</span></div><details class="record-details"><summary>나의 계산 기록</summary><ul>${records.map(r=>`<li><span>${DRUGS[r.drug].name}<small>${r.label}</small></span><b>${format(r.answer)} <small>mL/hr</small></b></li>`).join('')}</ul></details><div class="completion-actions">${all ? '<button type="button" class="btn primary" data-action="new-player" data-autofocus>다음 참가자 시작 →</button><button type="button" class="btn secondary" data-action="select">병실 다시 둘러보기</button>' : `<button type="button" class="btn primary" data-action="${session.completed.size === 3 ? 'allcomplete' : 'select'}" data-autofocus>${session.completed.size === 3 ? '전체 미션 결과 보기' : '다음 환자 선택'} →</button><button type="button" class="btn secondary" data-action="replay">이 병실 다시 도전</button>`}</div><p class="completion-note">교육용 예시 농도 기준 · 실제 처방 판단을 평가하는 게임이 아닙니다.</p></div></section>`;
+  view.innerHTML = `<section class="completion-panel entrance"><div class="complete-portrait">${art('nurse', '', '담당 간호사 픽셀 초상화')}</div><div class="completion-content"><span class="eyebrow">${all ? 'ALL MISSIONS COMPLETE' : `ROOM ${bedNo(room.id)} / COMPLETE`}</span><div class="clear-stamp">${checkIcon}<span>SHIFT<br>CLEAR</span></div><h1>${all ? '오늘의 근무, 무사히 완료!' : '이 병실의 미션을 마쳤어요.'}</h1><p class="completion-message">${all ? '세 명의 환자, 일곱 번의 꼼꼼한 계산.<br>함께해 줘서 고마워요. 당신의 다음 근무도 응원할게요.' : `${room.title}<br>단위를 살피고, 계산하고, 다시 확인하는 한 걸음.`}</p><div class="completion-stats"><span><b>${records.length}</b>완료 미션</span><span><b>${records.filter(r=>r.attempts===1).length}</b>첫 시도 성공</span><span><b>${session.completed.size}<small>/ 3</small></b>완료 병실</span></div><details class="record-details"><summary>나의 계산 기록</summary><ul>${records.map(r=>`<li><span>${DRUGS[r.drug].name}<small>${r.label}</small></span><b>${format(r.answer)} <small>mL/hr</small></b></li>`).join('')}</ul></details><div class="completion-actions">${all ? '<button type="button" class="btn primary" data-action="new-player" data-autofocus>다음 참가자 시작 →</button><button type="button" class="btn secondary" data-action="select">병실 다시 둘러보기</button>' : `<button type="button" class="btn primary" data-action="${session.completed.size === 3 ? 'allcomplete' : 'select'}" data-autofocus>${session.completed.size === 3 ? '전체 미션 결과 보기' : '다음 환자 선택'} →</button><button type="button" class="btn secondary" data-action="next-visitor">다음 참가자 시작</button><button type="button" class="btn secondary" data-action="replay">이 병실 다시 도전</button>`}</div><p class="completion-note">교육용 예시 농도 기준 · 실제 처방 판단을 평가하는 게임이 아닙니다.</p></div></section>`;
 }
 function render() {
   stopTyping(); clearTimeout(reactionTimer);
@@ -197,11 +199,20 @@ function submitSettings() {
 async function handleAction(action) {
   if (transitioning) return;
   if (action === 'next') { next(); return; }
-  if (action === 'sound') { settings.sound = !settings.sound; updateSoundButton(); saveSettings(); sound(); return; }
+  if (action === 'sound') {
+    settings.sound = !settings.sound; updateSoundButton(); saveSettings();
+    if (settings.sound) {
+      const played = await sound('success');
+      if (!settings.sound) return;
+      if (played) toast('효과음을 켰어요. 클릭·정답·오답에 소리가 나요.');
+      else { settings.sound = false; updateSoundButton(); saveSettings(); toast('소리를 시작하지 못했어요. 소리 버튼을 다시 눌러 주세요.'); }
+    } else toast('효과음을 껐어요.');
+    return;
+  }
   sound();
   switch(action) {
     case 'start': case 'select': transition(() => { session.phase = 'select'; session.roomId = null; }, 'PATIENT SELECT'); break;
-    case 'random': { const available = ROOMS.filter(r => !session.completed.has(r.id)); const pool = available.length ? available : ROOMS; chooseRoom(pool[Math.floor(Math.random() * pool.length)].id); break; }
+    case 'random': { const pool = ROOMS; chooseRoom(pool[Math.floor(Math.random() * pool.length)].id); break; }
     case 'hint': { const hint = session.hint(); if (hint) { $('hint-text').hidden = false; $('hint-text').textContent = hint; $('hint-count').textContent = `${Math.min(session.hintsUsed,3)} / 3`; } break; }
     case 'clear': $('answer-value').value = ''; $('answer-value').removeAttribute('aria-invalid'); break;
     case 'settings': showSettings(); break;
@@ -212,6 +223,7 @@ async function handleAction(action) {
     case 'confirm-leave': $('leave-dialog').close(); transition(()=>session.reset(),'MICU QUEST'); break;
     case 'replay': chooseRoom(session.roomId); break;
     case 'allcomplete': transition(()=>{session.phase='allcomplete';},'ALL MISSIONS COMPLETE'); break;
+    case 'next-visitor': transition(()=>{session.completed.clear(); completedRecords.clear(); session.reset(); session.phase='select';},'다음 참가자의 환자를 선택해 주세요'); break;
     case 'new-player': transition(()=>{session.completed.clear(); completedRecords.clear(); session.reset();},'새로운 근무를 시작합니다'); break;
   }
 }
