@@ -1,4 +1,4 @@
-import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=2.0.1';
+import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, parseAnswer } from './core.mjs?v=3.0.0';
 
 const $ = id => document.getElementById(id);
 const game = $('game'), view = $('view');
@@ -20,7 +20,7 @@ const arrow = '<span aria-hidden="true">↗</span>';
 const bedNo = n => String(n + 1).padStart(2, '0');
 function art(kind, className = '', label = '') {
   const boxes = { doctor: '0 0 640 752', nurse: '640 0 626 752', 'map-doctor': '220 795 280 440', 'map-nurse': '780 800 300 435' };
-  return `<svg class="pixel-art ${className}" viewBox="${boxes[kind]}" ${label ? `role="img" aria-label="${escapeHTML(label)}"` : 'aria-hidden="true"'}><image href="./assets/characters.png" width="1266" height="1243"/></svg>`;
+  return `<svg class="pixel-art ${className}" viewBox="${boxes[kind]}" ${label ? `role="img" aria-label="${escapeHTML(label)}"` : 'aria-hidden="true"'}><image href="./assets/characters-v3.png" width="1266" height="1243"/></svg>`;
 }
 $('actors').innerHTML = `${art('map-doctor', 'map-doctor')}<span class="talk-bubble">···</span>${art('map-nurse', 'map-nurse')}`;
 function saveSettings() {
@@ -95,18 +95,20 @@ async function transition(change, label = '') {
 }
 function setView(name) {
   game.dataset.view = name;
+  window.scrollTo(0, 0);
   if (session.roomId !== null) game.dataset.room = String(session.roomId); else delete game.dataset.room;
   $('bed-marker').textContent = session.roomId === null ? '' : bedNo(session.roomId);
-  $('shift-label').innerHTML = session.roomId === null ? 'SHIFT 01 <i></i> READY' : `ROOM ${bedNo(session.roomId)} <i></i> ${session.stepIndex + 1}/${session.room.steps.length}`;
+  const solved = [...completedRecords.values()].flat().length;
+  $('shift-label').innerHTML = session.roomId === null ? `SHIFT 01 <i></i> ${solved} / 7 CLEAR` : `ROOM ${bedNo(session.roomId)} <i></i> ${session.stepIndex + 1}/${session.room.steps.length}`;
   $('scene-caption').hidden = !['home', 'select'].includes(name);
 }
 function homeView() {
   setView('home');
-  view.innerHTML = `<div class="home-copy entrance"><span class="eyebrow light"><span class="tiny-cross"></span> WELCOME TO YOUR SHIFT</span><h1>MICU<br><em>QUEST</em><span class="title-dot">.</span></h1><p class="home-korean">작은 계산,<br>커다란 연결.</p><p class="home-description">픽셀 중환자실에서 만나는 세 명의 환자.<br>의사와 대화하고, 당신의 계산으로 미션을 완성하세요.</p></div><div class="home-bottom entrance"><div class="home-facts"><span><b>03</b>개의 병실</span><i></i><span><b>07</b>개의 미션</span><i></i><span>시간 제한 없이<br><strong>나만의 페이스로</strong></span></div><button class="btn primary start-btn" data-action="start" data-autofocus type="button">근무 시작하기 <span aria-hidden="true">→</span></button></div><span class="art-credit">AN EVENING IN THE ICU</span>`;
+  view.innerHTML = `<div class="home-copy entrance"><span class="eyebrow light"><span class="tiny-cross"></span> YOUR FIRST SHIFT / 첫 번째 근무</span><h1>MICU<br><em>QUEST</em><span class="title-dot">.</span></h1><p class="home-korean">작은 계산,<br>커다란 연결.</p><p class="home-description">픽셀 중환자실에서 만나는 세 명의 환자.<br>의사와 대화하고, 당신의 계산으로 미션을 완성하세요.</p></div><div class="home-bottom entrance"><div class="home-facts"><span><b>03</b>개의 병실</span><i></i><span><b>07</b>개의 미션</span><i></i><span>시간 제한 없이<br><strong>나만의 페이스로</strong></span></div><button class="btn primary start-btn" data-action="start" data-autofocus type="button">근무 시작하기 <span aria-hidden="true">→</span></button></div><span class="art-credit">YOU ARE PART OF THE TEAM</span>`;
 }
 function selectView() {
   setView('select');
-  view.innerHTML = `<div class="selection-heading entrance"><span class="eyebrow light">PATIENT SELECT / ${session.completed.size} OF 3 COMPLETE</span><h1>어느 병실부터 가볼까요?</h1><p>원하는 환자를 선택하거나, 랜덤 배정을 받아보세요.</p></div><div class="room-grid entrance">${ROOMS.map(r => `<button type="button" class="room-card ${r.color} ${session.completed.has(r.id) ? 'completed' : ''}" data-room="${r.id}" aria-label="${bedNo(r.id)}호실 ${r.title}${session.completed.has(r.id) ? ' 다시 도전' : ''}"><div class="room-top"><span class="room-number">ROOM <b>${bedNo(r.id)}</b></span><span class="room-badge">${session.completed.has(r.id) ? 'COMPLETE' : r.badge}</span></div><div class="room-card-body"><h2>${r.title}</h2><p>${r.subtitle}</p><span class="room-drugs">${r.summary}</span></div><div class="room-card-footer"><span>${r.steps.length}개의 계산 미션</span><span class="room-enter">${session.completed.has(r.id) ? '다시 도전' : '병실 입장'} ${arrow}</span></div></button>`).join('')}</div><div class="selection-bottom"><p>같은 처방도, 단위를 한 번 더 확인하기.</p><button class="btn glass" type="button" data-action="random">랜덤 배정 <span aria-hidden="true">↗</span></button></div>`;
+  view.innerHTML = `<div class="ward-hotspots" aria-label="침상에서 환자 선택">${ROOMS.map(r => `<button type="button" class="bed-hotspot" data-room="${r.id}" aria-label="${bedNo(r.id)}번 침상 ${r.title}"><span>${bedNo(r.id)}</span><i aria-hidden="true">▼</i></button>`).join('')}</div><div class="selection-heading entrance"><span class="eyebrow light">PATIENT SELECT / ${session.completed.size} OF 3 COMPLETE</span><h1>어느 병실부터 가볼까요?</h1><p>침상이나 아래 카드를 눌러 주세요.</p></div><div class="room-grid entrance">${ROOMS.map(r => `<button type="button" class="room-card ${r.color} ${session.completed.has(r.id) ? 'completed' : ''}" data-room="${r.id}" aria-label="${bedNo(r.id)}호실 ${r.title}${session.completed.has(r.id) ? ' 다시 도전' : ''}"><div class="room-top"><span class="room-number">ROOM <b>${bedNo(r.id)}</b></span><span class="room-badge">${session.completed.has(r.id) ? 'COMPLETE' : r.badge}</span></div><div class="room-card-body"><h2>${r.title}</h2><p>${r.subtitle}</p><span class="room-drugs">${r.summary}</span></div><div class="room-card-footer"><span>${r.steps.length}개의 계산 미션</span><span class="room-enter">${session.completed.has(r.id) ? '다시 도전' : '병실 입장'} ${arrow}</span></div></button>`).join('')}</div><div class="selection-bottom"><p>같은 처방도, 단위를 한 번 더 확인하기.</p><button class="btn glass" type="button" data-action="random">랜덤 배정 <span aria-hidden="true">↗</span></button></div>`;
 }
 function chapter() {
   const room = session.room;
@@ -115,7 +117,7 @@ function chapter() {
 function conversationView(correct = false) {
   setView(correct ? 'correct' : 'intro');
   const { room, step } = session, result = session.result;
-  view.innerHTML = `${chapter()}<div class="story-panel entrance ${correct ? 'celebrate' : ''}"><div class="portrait">${art('doctor', 'portrait-art', '담당 의사 픽셀 초상화')}<div class="nameplate"><span class="live-dot"></span><b>담당 의사</b><small>중환자의학과</small></div></div><div class="dialog-box"><div class="dialog-heading"><span class="eyebrow">${correct ? 'MISSION CLEAR' : 'DOCTOR’S NOTE'}</span><span class="dialog-count">${correct ? '잘했어요!' : `${session.lineIndex + 1} / ${step.lines.length}`}</span></div>${correct ? `<div class="success-answer">${checkIcon}<b>${format(result.answer)}</b><span>mL/hr</span></div>` : ''}<p class="speech" id="speech" aria-hidden="true"></p><p class="sr-only" id="speech-announcement" aria-live="polite"></p>${correct ? `<details class="solution"><summary>계산 풀이 확인</summary><p>${result.formula} = <b>${format(result.answer)} mL/hr</b></p><p>${result.explanation}</p></details>` : ''}<div class="dialog-footer"><span>${correct ? '한 번 더 확인하는 습관, 계속 이어가요.' : '타이핑 중 누르면 대사가 한 번에 표시돼요.'}</span><button class="btn ${correct ? 'primary' : 'dark'} next-btn" data-action="next" type="button" data-autofocus>${correct ? session.stepIndex + 1 === room.steps.length ? '병실 미션 완료' : '다음 처방으로' : '▼ 다음'}</button></div></div></div>${correct ? '<div class="confetti" aria-hidden="true">' + Array.from({length:16}, (_,i) => `<i style="--i:${i}"></i>`).join('') + '</div>' : ''}`;
+  view.innerHTML = `${chapter()}<div class="story-panel entrance ${correct ? 'celebrate' : ''}"><div class="portrait">${art('doctor', 'portrait-art', '담당 의사 픽셀 초상화')}<div class="nameplate"><span class="live-dot"></span><b>담당 의사</b><small>중환자의학과</small></div></div><div class="dialog-box"><div class="dialog-heading"><span class="eyebrow">${correct ? 'MISSION CLEAR' : '담당 의사의 인계'}</span><span class="dialog-count">${correct ? '잘했어요!' : `${session.lineIndex + 1} / ${step.lines.length}`}</span></div>${correct ? `<div class="success-answer">${checkIcon}<b>${format(result.answer)}</b><span>mL/hr</span></div>` : ''}<p class="speech" id="speech" aria-hidden="true"></p><p class="sr-only" id="speech-announcement" aria-live="polite"></p>${correct ? `<details class="solution"><summary>계산 풀이 확인</summary><p>${result.formula} = <b>${format(result.answer)} mL/hr</b></p><p>${result.explanation}</p></details>` : ''}<div class="dialog-footer"><span>${correct ? '한 번 더 확인하는 습관, 계속 이어가요.' : '타이핑 중 누르면 대사가 한 번에 표시돼요.'}</span><button class="btn ${correct ? 'primary' : 'dark'} next-btn" data-action="next" type="button" data-autofocus>${correct ? session.stepIndex + 1 === room.steps.length ? '병실 미션 완료' : '다음 처방으로' : '▼ 다음'}</button></div></div></div>${correct ? '<div class="confetti" aria-hidden="true">' + Array.from({length:16}, (_,i) => `<i style="--i:${i}"></i>`).join('') + '</div>' : ''}`;
   startTyping(correct ? step.success : step.lines[session.lineIndex]);
 }
 function missionView() {
