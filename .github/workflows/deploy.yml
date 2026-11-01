@@ -47,7 +47,7 @@ jobs:
       - name: Include MICU QUEST in published site
         run: |
           mkdir -p build/web/micu-quest
-          cp micu-quest/index.html build/web/micu-quest/index.html
+          cp -R micu-quest/. build/web/micu-quest/
 
       - name: Disable Jekyll processing
         run: touch build/web/.nojekyll
