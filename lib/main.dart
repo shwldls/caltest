@@ -136,7 +136,8 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
     setState(() {
       _presetsByDepartment = mergedMap;
       _selectedDepartmentId =
-          savedDepartment != null && mergedMap.containsKey(savedDepartment)
+          isDepartmentEnabled(savedDepartment) &&
+                  mergedMap.containsKey(savedDepartment)
               ? savedDepartment
               : null;
       _selectedPresetId = null;
@@ -208,6 +209,8 @@ class _PumpCalculatorPageState extends State<PumpCalculatorPage> {
   }
 
   void _selectDepartment(String departmentId) {
+    if (!isDepartmentEnabled(departmentId)) return;
+
     setState(() {
       _selectedDepartmentId = departmentId;
       _selectedPresetId = null;

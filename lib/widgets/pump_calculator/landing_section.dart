@@ -31,7 +31,7 @@ class LandingSection extends StatelessWidget {
                   crossAxisCount: useSingleColumn ? 1 : 2,
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 16,
-                  mainAxisExtent: (useSingleColumn ? 100 : 158) * textScale,
+                  mainAxisExtent: (useSingleColumn ? 126 : 186) * textScale,
                 ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -68,48 +68,55 @@ class DepartmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: ScallopedCard(
-            padding: useHorizontalLayout
-                ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
-                : const EdgeInsets.fromLTRB(10, 18, 10, 14),
-            child: useHorizontalLayout
-                ? Row(
-                    children: [
-                      Text(
-                        department.icon,
-                        style: const TextStyle(fontSize: 27),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _DepartmentCardText(
-                          department: department,
-                          textAlign: TextAlign.left,
+    return Semantics(
+      button: true,
+      enabled: department.isEnabled,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: department.isEnabled ? onTap : null,
+          child: SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: ScallopedCard(
+              color: department.isEnabled
+                  ? snoobiCream
+                  : const Color(0xFFE8ECEF),
+              padding: useHorizontalLayout
+                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+                  : const EdgeInsets.fromLTRB(10, 18, 10, 14),
+              child: useHorizontalLayout
+                  ? Row(
+                      children: [
+                        Text(
+                          department.icon,
+                          style: const TextStyle(fontSize: 27),
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        department.icon,
-                        style: const TextStyle(fontSize: 25),
-                      ),
-                      const SizedBox(height: 5),
-                      _DepartmentCardText(
-                        department: department,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _DepartmentCardText(
+                            department: department,
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          department.icon,
+                          style: const TextStyle(fontSize: 25),
+                        ),
+                        const SizedBox(height: 5),
+                        _DepartmentCardText(
+                          department: department,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
@@ -141,9 +148,30 @@ class _DepartmentCardText extends StatelessWidget {
             fontSize: 20,
             height: 1.25,
             fontWeight: FontWeight.w800,
-            color: snoobiInk,
+            color: department.isEnabled
+                ? snoobiInk
+                : const Color(0xFF65717C),
           ),
         ),
+        if (!department.isEnabled) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD3DAE0),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              '비활성화',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF46525D),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 6),
         Text(
           department.description,

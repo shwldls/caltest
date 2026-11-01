@@ -1,3 +1,5 @@
+bool isDepartmentEnabled(String? departmentId) => departmentId == 'micu';
+
 class DepartmentPreset {
   DepartmentPreset({
     required this.id,
@@ -14,6 +16,7 @@ class DepartmentPreset {
   final List<DrugPreset> presets;
 
   String get displayTitle => label;
+  bool get isEnabled => isDepartmentEnabled(id);
 }
 
 class DrugPreset {

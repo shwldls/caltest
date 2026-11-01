@@ -179,17 +179,19 @@ class HandDrawnDivider extends StatelessWidget {
 class ScallopedCard extends StatelessWidget {
   const ScallopedCard({
     required this.child,
+    this.color = snoobiCream,
     this.padding = const EdgeInsets.all(18),
     super.key,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _ScallopedPainter(color: snoobiCream),
+      painter: _ScallopedPainter(color: color),
       child: Padding(padding: padding, child: child),
     );
   }

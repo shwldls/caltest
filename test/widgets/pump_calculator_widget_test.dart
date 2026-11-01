@@ -9,6 +9,42 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  testWidgets('only MICU opens while other departments remain visibly disabled',
+      (tester) async {
+    await tester.pumpWidget(const JjonddeukCalculatorApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('비활성화'), findsNWidgets(3));
+    for (final label in ['SICU', 'NCU', 'EICU2']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(find.text('계산할 부서를 선택해 주세요'), findsOneWidget);
+      expect(find.byKey(const Key('medication-required-banner')), findsNothing);
+    }
+
+    await tester.ensureVisible(find.text('MICU'));
+    await tester.tap(find.text('MICU'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('medication-required-banner')), findsOneWidget);
+  });
+
+  for (final key in [selectedDepartmentKey, ...legacySelectedDepartmentKeys]) {
+    for (final departmentId in ['sicu', 'ncu', 'eicu2']) {
+      testWidgets('saved $departmentId in $key returns to department selection',
+          (tester) async {
+        SharedPreferences.setMockInitialValues({key: departmentId});
+        await tester.pumpWidget(const JjonddeukCalculatorApp());
+        await tester.pumpAndSettle();
+
+        expect(find.text('계산할 부서를 선택해 주세요'), findsOneWidget);
+        expect(find.text('비활성화'), findsNWidgets(3));
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString(selectedDepartmentKey), isEmpty);
+      });
+    }
+  }
+
   testWidgets('department entry requires an explicit medication selection', (
     tester,
   ) async {
