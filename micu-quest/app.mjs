@@ -1,5 +1,5 @@
-import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, formatAnswer, parseAnswer } from './core.mjs?v=3.5.0';
-import { GameAudio } from './audio.mjs?v=3.5.0';
+import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, formatAnswer, parseAnswer } from './core.mjs?v=3.6.0';
+import { GameAudio, DEFAULT_VOLUMES, normalizeVolumes } from './audio.mjs?v=3.6.0';
 
 const $ = id => document.getElementById(id);
 const game = $('game'), view = $('view');
@@ -7,13 +7,20 @@ const game = $('game'), view = $('view');
 // Subsequent user edits persist within this revision; calculator storage is untouched.
 const STORE = 'micu-quest:settings:v3.1';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-let settings = { dilutions: defaultDilutions(), speed: 26, sound: false, bgm: true, voice: true };
+let settings = { dilutions: defaultDilutions(), speed: 26, sound: false, bgm: true, voice: true, volumes: normalizeVolumes() };
 try {
   const saved = JSON.parse(localStorage.getItem(STORE));
-  if (saved) settings = { dilutions: validateDilutions(saved.dilutions), speed: [0, 14, 26, 42].includes(saved.speed) ? saved.speed : 26, sound: saved.sound === true, bgm: saved.bgm !== false, voice: saved.voice !== false };
+  if (saved) settings = { dilutions: validateDilutions(saved.dilutions), speed: [0, 14, 26, 42].includes(saved.speed) ? saved.speed : 26, sound: saved.sound === true, bgm: saved.bgm !== false, voice: saved.voice !== false, volumes: normalizeVolumes(saved.volumes) };
 } catch { /* Invalid/blocked storage falls back safely without touching calculator storage. */ }
+if (!settings.bgm) settings.volumes.music = 0;
+if (!settings.voice) settings.volumes.voice = 0;
+let audioDraftVolumes = null;
+function audioPreferences() {
+  const volumes = audioDraftVolumes || settings.volumes;
+  return { ...settings, volumes, bgm: volumes.music > 0, voice: volumes.voice > 0 };
+}
 const audio = new GameAudio();
-audio.configure(settings);
+audio.configure(audioPreferences());
 const session = new QuestSession(settings.dilutions);
 const completedRecords = new Map();
 let typing = false, typeFrame = 0, fullText = '', typeGeneration = 0;
@@ -37,13 +44,14 @@ function toast(message) {
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3600);
 }
 function sound(kind = 'click') {
-  audio.configure(settings);
+  audio.configure(audioPreferences());
   return audio.play(kind);
 }
 // Recreate audio on the next gesture after a call, screen lock or app switch.
 document.addEventListener('visibilitychange', () => { if (document.hidden) audio.release(); });
 window.addEventListener('pagehide', () => audio.release());
 function updateSoundButton() {
+  if ($('settings-sound-toggle')) $('settings-sound-toggle').textContent = settings.sound ? '전체 소리 끄기' : '전체 소리 켜기';
   $('sound-toggle').setAttribute('aria-pressed', String(settings.sound));
   $('sound-toggle').setAttribute('aria-label', settings.sound ? '게임 소리 끄기' : '게임 소리 켜기');
   $('sound-toggle').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z${settings.sound ? 'M17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14' : 'M17 9l4 6m0-6-4 6'}"/></svg><span class="sound-label">소리 ${settings.sound ? '켬' : '끔'}</span>`;
@@ -175,10 +183,9 @@ function showSettings() {
   completeTyping();
   const active = ['intro','mission','correct'].includes(session.phase);
   const dialog = $('settings-dialog');
-  dialog.innerHTML = `<form id="settings-form" novalidate><div class="modal-heading"><button class="modal-close icon-btn" type="button" data-action="close-settings" aria-label="설정 닫기">×</button><span class="eyebrow">GAME SETTINGS / v${VERSION}</span><h2 id="settings-title">나의 근무 설정</h2><p>모든 농도는 <b>교육용 예시</b>입니다. 병원 표준 농도는 미확정이며,<br class="desktop-only"> 최종 혼합액의 부피를 기준으로 계산합니다.</p></div><div class="preference-row"><label for="type-speed">대사 표시 속도</label><select id="type-speed" name="speed"><option value="42">천천히</option><option value="26">보통</option><option value="14">빠르게</option><option value="0">즉시 표시</option></select></div><div class="preference-row"><label for="bgm-enabled">배경음</label><select id="bgm-enabled" name="bgm"><option value="on">작게 재생</option><option value="off">끔</option></select></div><div class="preference-row"><label for="voice-enabled">대사 타이핑 소리</label><select id="voice-enabled" name="voice"><option value="on">켬</option><option value="off">끔</option></select></div><p class="settings-footnote">상단의 소리를 켜면 적용됩니다. 배경음은 작게 반복되고, 대사음은 글자가 나타날 때만 재생됩니다.</p><div class="mix-heading"><h3>교육용 희석 농도</h3><button type="button" class="text-btn" data-action="default-mixes" ${active ? 'disabled' : ''}>예시값으로 복원</button></div>${active ? '<p class="settings-lock">진행 중에는 농도를 바꿀 수 없어요. 병실 미션을 마치거나 시작 화면으로 돌아가면 변경할 수 있어요.</p>' : ''}<div class="mix-table"><div class="mix-table-head"><span>약물명</span><span>약물량</span><span>최종 부피</span></div>${Object.entries(DRUGS).map(([key,d])=>`<div class="mix-row"><label for="mix-${key}-amount">${d.name}</label><div><input id="mix-${key}-amount" name="${key}-amount" type="text" inputmode="decimal" value="${format(settings.dilutions[key].amount)}" aria-label="${d.name} 약물량 ${d.unit}" ${active ? 'disabled' : ''}><span>${d.unit}</span></div><div><input id="mix-${key}-volume" name="${key}-volume" type="text" inputmode="decimal" value="${format(settings.dilutions[key].volume)}" aria-label="${d.name} 최종 부피 mL" ${active ? 'disabled' : ''}><span>mL</span></div></div>`).join('')}</div><p id="settings-error" class="settings-error" role="alert"></p><p class="settings-footnote">이 브라우저에만 저장됩니다. 농도를 변경하면 문제·정답·힌트가 함께 바뀝니다.<br>각 숫자는 유효숫자 12자리까지 입력할 수 있습니다. 실제 환자 처방이나 개인정보를 입력하지 마세요.</p><div class="modal-actions"><button class="btn secondary" type="button" data-action="close-settings">취소</button><button class="btn primary" type="submit">설정 저장</button></div></form>`;
+  audioDraftVolumes = { ...settings.volumes };
+  dialog.innerHTML = `<form id="settings-form" novalidate><div class="modal-heading"><button class="modal-close icon-btn" type="button" data-action="close-settings" aria-label="설정 닫기">×</button><span class="eyebrow">GAME SETTINGS / v${VERSION}</span><h2 id="settings-title">나의 근무 설정</h2><p>모든 농도는 <b>교육용 예시</b>입니다. 병원 표준 농도는 미확정이며,<br class="desktop-only"> 최종 혼합액의 부피를 기준으로 계산합니다.</p></div><div class="preference-row"><label for="type-speed">대사 표시 속도</label><select id="type-speed" name="speed"><option value="42">천천히</option><option value="26">보통</option><option value="14">빠르게</option><option value="0">즉시 표시</option></select></div><section class="sound-settings" aria-labelledby="sound-settings-title"><div class="sound-settings-heading"><h3 id="sound-settings-title">소리별 음량</h3><button class="text-btn" type="button" data-action="sound" id="settings-sound-toggle">${settings.sound ? '전체 소리 끄기' : '전체 소리 켜기'}</button></div>${Object.entries({music:'배경음',voice:'대사 타이핑 소리',click:'버튼 효과음',success:'정답 효과음',wrong:'오답 효과음'}).map(([key,label])=>`<div class="volume-row"><div class="volume-heading"><label for="volume-${key}">${label}</label><output id="volume-${key}-output" for="volume-${key}">${audioDraftVolumes[key]}%</output></div><div class="volume-controls"><input id="volume-${key}" name="volume-${key}" type="range" min="0" max="100" step="1" value="${audioDraftVolumes[key]}" data-volume="${key}" aria-label="${label} 음량" aria-valuetext="${audioDraftVolumes[key]}%"><button class="text-btn" type="button" data-action="preview-${key}" aria-label="${label} 미리 듣기">듣기</button></div></div>`).join('')}<p class="settings-footnote">0%는 해당 소리 끄기 · 100%까지 키울 수 있어요.<br>조절하면 바로 반영됩니다. 설정 저장을 누르면 다음에도 유지돼요.</p><p id="sound-preview-status" class="sound-preview-status" role="status" aria-live="polite"></p></section><div class="mix-heading"><h3>교육용 희석 농도</h3><button type="button" class="text-btn" data-action="default-mixes" ${active ? 'disabled' : ''}>예시값으로 복원</button></div>${active ? '<p class="settings-lock">진행 중에는 농도를 바꿀 수 없어요. 병실 미션을 마치거나 시작 화면으로 돌아가면 변경할 수 있어요.</p>' : ''}<div class="mix-table"><div class="mix-table-head"><span>약물명</span><span>약물량</span><span>최종 부피</span></div>${Object.entries(DRUGS).map(([key,d])=>`<div class="mix-row"><label for="mix-${key}-amount">${d.name}</label><div><input id="mix-${key}-amount" name="${key}-amount" type="text" inputmode="decimal" value="${format(settings.dilutions[key].amount)}" aria-label="${d.name} 약물량 ${d.unit}" ${active ? 'disabled' : ''}><span>${d.unit}</span></div><div><input id="mix-${key}-volume" name="${key}-volume" type="text" inputmode="decimal" value="${format(settings.dilutions[key].volume)}" aria-label="${d.name} 최종 부피 mL" ${active ? 'disabled' : ''}><span>mL</span></div></div>`).join('')}</div><p id="settings-error" class="settings-error" role="alert"></p><p class="settings-footnote">이 브라우저에만 저장됩니다. 농도를 변경하면 문제·정답·힌트가 함께 바뀝니다.<br>각 숫자는 유효숫자 12자리까지 입력할 수 있습니다. 실제 환자 처방이나 개인정보를 입력하지 마세요.</p><div class="modal-actions"><button class="btn secondary" type="button" data-action="close-settings">취소</button><button class="btn primary" type="submit">설정 저장</button></div></form>`;
   $('type-speed').value = String(settings.speed);
-  $('bgm-enabled').value = settings.bgm ? 'on' : 'off';
-  $('voice-enabled').value = settings.voice ? 'on' : 'off';
   dialog.showModal();
 }
 function submitSettings() {
@@ -190,22 +197,28 @@ function submitSettings() {
     const trial = new QuestSession(validated);
     for (const r of ROOMS) { trial.choose(r.id); for (let i=0;i<r.steps.length;i++) { trial.stepIndex = i; if (!Number.isFinite(trial.result.raw) || trial.result.answer <= 0 || trial.result.answer >= 1e12) throw new Error('주입 속도를 소수 첫째 자리로 표현할 수 있도록 농도를 조정해 주세요.'); } }
     settings.dilutions = validated; settings.speed = Number(form.elements.speed.value);
-    settings.bgm = form.elements.bgm.value === 'on'; settings.voice = form.elements.voice.value === 'on';
-    audio.configure(settings);
+    settings.volumes = normalizeVolumes(audioDraftVolumes); audioDraftVolumes = null;
+    settings.bgm = settings.volumes.music > 0; settings.voice = settings.volumes.voice > 0;
+    audio.configure(audioPreferences());
     session.dilutions = validateDilutions(validated);
-    const saved = saveSettings(); $('settings-dialog').close(); if (saved) toast('설정을 저장했어요. 다음 계산부터 적용됩니다.');
+    const saved = saveSettings(); $('settings-dialog').close(); if (saved) toast('설정을 저장했어요. 음량은 바로 적용됩니다.');
   } catch (error) { $('settings-error').textContent = error.message; }
 }
 async function handleAction(action) {
   if (transitioning) return;
   if (action === 'next') { next(); return; }
+  if (action.startsWith('preview-')) {
+    if (!settings.sound) { $('sound-preview-status').textContent = '위쪽의 전체 소리 켜기를 눌러 주세요.'; return; }
+    $('sound-preview-status').textContent = '';
+    sound(action.slice(8)); return;
+  }
   if (action === 'sound') {
-    settings.sound = !settings.sound; audio.configure(settings); updateSoundButton(); saveSettings();
+    settings.sound = !settings.sound; audio.configure(audioPreferences()); updateSoundButton(); saveSettings();
     if (settings.sound) {
       const played = await sound('success');
       if (!settings.sound) return;
       if (played) toast('소리를 켰어요. 배경음·대사음은 설정에서 조절할 수 있어요.');
-      else { settings.sound = false; audio.configure(settings); updateSoundButton(); saveSettings(); toast('소리를 시작하지 못했어요. 소리 버튼을 다시 눌러 주세요.'); }
+      else { settings.sound = false; audio.configure(audioPreferences()); updateSoundButton(); saveSettings(); toast('소리를 시작하지 못했어요. 소리 버튼을 다시 눌러 주세요.'); }
     } else toast('모든 게임 소리를 껐어요.');
     return;
   }
@@ -216,7 +229,7 @@ async function handleAction(action) {
     case 'hint': { const hint = session.hint(); if (hint) { $('hint-text').hidden = false; $('hint-text').textContent = hint; $('hint-count').textContent = `${Math.min(session.hintsUsed,3)} / 3`; } break; }
     case 'clear': $('answer-value').value = ''; $('answer-value').removeAttribute('aria-invalid'); break;
     case 'settings': showSettings(); break;
-    case 'close-settings': $('settings-dialog').close(); break;
+    case 'close-settings': audioDraftVolumes = null; audio.configure(audioPreferences()); $('settings-dialog').close(); break;
     case 'default-mixes': { if (['intro','mission','correct'].includes(session.phase)) break; const defaults = defaultDilutions(); for (const [key,value] of Object.entries(defaults)) { $(`mix-${key}-amount`).value = value.amount; $(`mix-${key}-volume`).value = value.volume; } break; }
     case 'home': if (['intro','mission','correct'].includes(session.phase)) { completeTyping(); $('leave-dialog').showModal(); } else transition(()=>session.reset(),'MICU QUEST'); break;
     case 'cancel-leave': $('leave-dialog').close(); break;
@@ -232,6 +245,17 @@ document.addEventListener('click', event => {
   if (action) { handleAction(action.dataset.action); return; }
   const room = event.target.closest('[data-room]'); if (room && session.phase === 'select') { chooseRoom(Number(room.dataset.room)); return; }
   const key = event.target.closest('[data-key]'); if (key) keyInput(key.dataset.key);
+});
+document.addEventListener('input', event => {
+  const key = event.target.dataset.volume;
+  if (!audioDraftVolumes || !Object.hasOwn(DEFAULT_VOLUMES, key)) return;
+  audioDraftVolumes[key] = Number(event.target.value);
+  $(`volume-${key}-output`).textContent = `${audioDraftVolumes[key]}%`;
+  event.target.setAttribute('aria-valuetext', `${audioDraftVolumes[key]}%`);
+  audio.configure(audioPreferences());
+});
+$('settings-dialog').addEventListener('cancel', () => {
+  audioDraftVolumes = null; audio.configure(audioPreferences());
 });
 document.addEventListener('submit', event => { if (event.target.id === 'answer-form') { event.preventDefault(); submitAnswer(); } else if (event.target.id === 'settings-form') { event.preventDefault(); submitSettings(); } });
 document.addEventListener('keydown', event => {

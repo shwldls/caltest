@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GameAudio } from '../audio.mjs';
+import { GameAudio, DEFAULT_VOLUMES, normalizeVolumes } from '../audio.mjs';
 
 function harness() {
   const contexts = [], intervals = new Map(), timeouts = new Map(); let id = 0;
@@ -18,7 +18,7 @@ function harness() {
       return { frequency: {}, connect() {}, disconnect() {}, start() {}, stop() {} };
     }
     createGain() {
-      return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} };
+      return { gain: { value: 0, setValueAtTime(value) { this.value = value; }, exponentialRampToValueAtTime() {}, setTargetAtTime(value) { this.value = value; } }, connect() {}, disconnect() {} };
     }
   }
   return { audio: new GameAudio({ Context, timers }), contexts, intervals, timeouts };
@@ -97,4 +97,32 @@ test('muting while resume is pending cannot start late music or effects', async 
   audio.configure({ ...preferences, sound: false }); resume();
   assert.equal(await pending, false);
   assert.equal(intervals.size, 0); assert.equal(audio.voices.size, 0);
+});
+
+
+test('independent volume levels update already playing channels without stacking music', async () => {
+  const { audio, intervals } = harness();
+  audio.configure(preferences); await audio.play('success'); await audio.play('wrong'); await audio.play(); audio.dialogue('음');
+  const musicChannel = audio.channels.get('music');
+  assert.equal(musicChannel.gain.value, 1, 'New controls preserve the previous default level');
+  audio.configure({ ...preferences, volumes: { ...DEFAULT_VOLUMES, music: 100, voice: 80, click: 25, success: 100, wrong: 0 } });
+  assert.equal(audio.channels.get('music'), musicChannel, 'Sustaining notes use the same live channel');
+  assert.equal(musicChannel.gain.value, 4);
+  assert.equal(audio.channels.get('voice').gain.value, 2);
+  assert.equal(audio.channels.get('click').gain.value, .5);
+  assert.equal(audio.channels.get('success').gain.value, 2);
+  assert.equal(audio.channels.get('wrong').gain.value, 0);
+  assert.equal(intervals.size, 1);
+  audio.stopVoices('effect'); await audio.play('wrong');
+  assert.equal([...audio.voices].filter(v => v.group === 'effect').length, 0, 'Zero-level effects remain silent');
+  audio.configure({ ...preferences, volumes: { ...DEFAULT_VOLUMES, music: 0, voice: 0 } });
+  assert.equal(intervals.size, 0); audio.dialogue('음');
+  assert.ok([...audio.voices].every(v => v.group !== 'music' && v.group !== 'voice'));
+});
+
+test('invalid stored levels fall back safely while zero and maximum values survive reload', () => {
+  assert.deepEqual(normalizeVolumes(), DEFAULT_VOLUMES);
+  const saved = JSON.parse(JSON.stringify({ music: 100, voice: 0, click: -5, success: 1000, wrong: 'loud' }));
+  assert.deepEqual(normalizeVolumes(saved), { music: 100, voice: 0, click: 0, success: 100, wrong: 50 });
+  assert.equal(normalizeVolumes({ music: NaN }).music, DEFAULT_VOLUMES.music);
 });
