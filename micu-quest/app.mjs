@@ -1,5 +1,5 @@
-import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, formatAnswer, parseAnswer } from './core.mjs?v=3.7.0';
-import { GameAudio, DEFAULT_VOLUMES, normalizeVolumes } from './audio.mjs?v=3.7.0';
+import { VERSION, DRUGS, ROOMS, QuestSession, defaultDilutions, validateDilutions, format, formatAnswer, parseAnswer } from './core.mjs?v=3.8.0';
+import { GameAudio, DEFAULT_VOLUMES, normalizeVolumes } from './audio.mjs?v=3.8.0';
 
 const $ = id => document.getElementById(id);
 const game = $('game'), view = $('view');
@@ -34,7 +34,43 @@ function art(kind, className = '', label = '') {
   const boxes = { doctor: '0 0 640 752', nurse: '640 0 626 752', 'map-doctor': '220 795 280 440', 'map-nurse': '780 800 300 435' };
   return `<svg class="pixel-art ${className}" viewBox="${boxes[kind]}" ${label ? `role="img" aria-label="${escapeHTML(label)}"` : 'aria-hidden="true"'}><image href="./assets/characters-v3.png" width="1266" height="1243"/></svg>`;
 }
-$('actors').innerHTML = `${art('map-doctor', 'map-doctor')}<span class="talk-bubble">···</span>${art('map-nurse', 'map-nurse')}`;
+const cheers = {
+  doctor: { name: '담당 의사', messages: ['선생님, 오늘도 혼자 고민하지 마세요. 우리 같이 확인하면 됩니다.', '계산이 바로 안 나와도 괜찮아요. 잠깐 멈추고 단위부터 차근차근 봅시다.', '한 번 더 확인하는 선생님 덕분에 든든합니다. 오늘도 함께 잘해봅시다.'] },
+  nurse: { name: '동료 간호사', messages: ['선생님의 꼼꼼한 확인이 환자를 지켜요. 오늘 근무도 응원할게요!', '바쁜 근무 속에서도 애쓰는 거 알아요. 잠깐 어깨 펴고, 우리 같이 힘내요!', '처음부터 다 아는 사람은 없잖아요. 하나씩 익혀가는 선생님, 충분히 잘하고 있어요.'] },
+};
+const cheerCount = { doctor: 0, nurse: 0 };
+let cheerActor = null, hoveredRoom = null, focusedRoom = null;
+function updateActors(name) {
+  const interactive = ['home', 'select'].includes(name);
+  $('actors').setAttribute('aria-hidden', String(!interactive));
+  $('actors').innerHTML = ['doctor','nurse'].map(kind => interactive
+    ? `<button type="button" class="npc-button" data-npc="${kind}" aria-label="${kind === 'doctor' ? '의사' : '간호사'}에게 말 걸기" aria-controls="cheer-panel" aria-expanded="false">${art(`map-${kind}`, `map-${kind}`)}</button>`
+    : art(`map-${kind}`, `map-${kind}`)).join('<span class="talk-bubble" aria-hidden="true">···</span>');
+}
+function closeCheer(restoreFocus = false) {
+  $('cheer-panel').hidden = true;
+  const button = $('actors').querySelector(`[data-npc="${cheerActor}"]`);
+  button?.setAttribute('aria-expanded','false');
+  if (restoreFocus) button?.focus({preventScroll:true});
+  cheerActor = null;
+}
+function showCheer(kind) {
+  if (transitioning || !['home','select'].includes(session.phase) || !cheers[kind]) return;
+  closeCheer(); cheerActor = kind;
+  const character = cheers[kind];
+  $('cheer-speaker').textContent = character.name;
+  $('cheer-message').textContent = character.messages[cheerCount[kind]++ % character.messages.length];
+  $('cheer-panel').hidden = false;
+  $('actors').querySelector(`[data-npc="${kind}"]`).setAttribute('aria-expanded','true');
+  sound('success');
+}
+function updateRoomHighlight() {
+  const room = session.phase === 'select' ? hoveredRoom ?? focusedRoom : null;
+  if (room === null) delete game.dataset.highlightedRoom; else game.dataset.highlightedRoom = room;
+  view.querySelectorAll('.bed-hotspot[data-room],.room-card[data-room]').forEach(element => {
+    element.classList.toggle('is-room-highlighted', element.dataset.room === room);
+  });
+}
 function saveSettings() {
   try { localStorage.setItem(STORE, JSON.stringify(settings)); return true; }
   catch { toast('현재 게임에 적용했어요. 이 브라우저에서는 설정을 저장할 수 없어요.'); return false; }
@@ -102,7 +138,9 @@ async function transition(change, label = '') {
   }
 }
 function setView(name) {
+  closeCheer(); hoveredRoom = null; focusedRoom = null; delete game.dataset.highlightedRoom;
   game.dataset.view = name;
+  updateActors(name);
   window.scrollTo(0, 0);
   if (session.roomId !== null) game.dataset.room = String(session.roomId); else delete game.dataset.room;
   $('bed-marker').textContent = session.roomId === null ? '' : bedNo(session.roomId);
@@ -212,6 +250,7 @@ function submitSettings() {
 async function handleAction(action) {
   if (transitioning) return;
   if (action === 'next') { next(); return; }
+  if (action === 'close-cheer') { closeCheer(true); sound(); return; }
   if (action.startsWith('preview-')) {
     if (!settings.sound) { $('sound-preview-status').textContent = '위쪽의 전체 소리 켜기를 눌러 주세요.'; return; }
     $('sound-preview-status').textContent = '';
@@ -246,10 +285,31 @@ async function handleAction(action) {
   }
 }
 document.addEventListener('click', event => {
+  const npc = event.target.closest('[data-npc]');
+  if (npc) { showCheer(npc.dataset.npc); return; }
   const action = event.target.closest('[data-action]');
   if (action) { handleAction(action.dataset.action); return; }
   const room = event.target.closest('[data-room]'); if (room && session.phase === 'select') { chooseRoom(Number(room.dataset.room)); return; }
   const key = event.target.closest('[data-key]'); if (key) keyInput(key.dataset.key);
+});
+const roomControl = target => target instanceof Element ? target.closest('.bed-hotspot[data-room],.room-card[data-room]') : null;
+view.addEventListener('pointerover', event => {
+  if (event.pointerType === 'touch') return;
+  const control = roomControl(event.target);
+  if (control) { hoveredRoom = control.dataset.room; updateRoomHighlight(); }
+});
+view.addEventListener('pointerout', event => {
+  if (event.pointerType === 'touch' || !roomControl(event.target)) return;
+  hoveredRoom = roomControl(event.relatedTarget)?.dataset.room ?? null;
+  updateRoomHighlight();
+});
+view.addEventListener('focusin', event => {
+  focusedRoom = roomControl(event.target)?.dataset.room ?? null;
+  hoveredRoom = null; updateRoomHighlight();
+});
+view.addEventListener('focusout', event => {
+  focusedRoom = roomControl(event.relatedTarget)?.dataset.room ?? null;
+  updateRoomHighlight();
 });
 document.addEventListener('input', event => {
   const key = event.target.dataset.volume;
@@ -264,6 +324,7 @@ $('settings-dialog').addEventListener('cancel', () => {
 });
 document.addEventListener('submit', event => { if (event.target.id === 'answer-form') { event.preventDefault(); submitAnswer(); } else if (event.target.id === 'settings-form') { event.preventDefault(); submitSettings(); } });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('cheer-panel').hidden && !$('settings-dialog').open) { event.preventDefault(); closeCheer(true); return; }
   if (event.repeat || event.isComposing || $('settings-dialog').open || $('leave-dialog').open || transitioning) return;
   const editing = /INPUT|TEXTAREA|SELECT/.test(event.target.tagName);
   if (['intro','correct','review'].includes(session.phase) && ['Enter',' '].includes(event.key) && !editing && !event.target.closest('summary') && (!event.target.closest('button') || event.target.closest('[data-action="next"]'))) { event.preventDefault(); next(); }
