@@ -1,6 +1,6 @@
 // Original educational prescriptions; dilutions are NOT confirmed hospital standards.
 // All volumes are FINAL solution volumes, not diluent volumes.
-export const VERSION = '3.7.0';
+export const VERSION = '3.8.0';
 export const DRUGS = Object.freeze({
   norepi: { name: 'Norepinephrine', amount: 6, unit: 'mg', volume: 200 },
   vaso: { name: 'Vasopressin', amount: 40, unit: 'units', volume: 100 },
