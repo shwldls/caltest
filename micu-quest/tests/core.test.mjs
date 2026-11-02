@@ -69,7 +69,10 @@ test('every room can progress through dialogue, wrong answer, retry, all prescri
 });
 test('answers require the rate rounded to one decimal, allowing equivalent trailing zeros', () => {
   const q=new QuestSession();q.choose(1);q.stepIndex=1;q.phase='mission';
-  for (const input of ['33.33','33.34','33.4','33.299']) assert.equal(q.submit(input).status,'incorrect');
+  for (const input of ['33.33','33.34','33.4','33.299']) {
+    q.choose(1);q.stepIndex=1;q.phase='mission';
+    assert.equal(q.submit(input).status,'incorrect');
+  }
   assert.equal(q.submit('33.3').status,'correct');
   const q2=new QuestSession();q2.choose(0);q2.phase='mission';
   assert.equal(q2.submit('20').status,'correct');
@@ -78,6 +81,43 @@ test('answers require the rate rounded to one decimal, allowing equivalent trail
   const q3=new QuestSession();q3.choose(1);q3.stepIndex=2;q3.phase='mission';
   assert.equal(q3.submit('16.6').status,'incorrect');
   assert.equal(q3.submit('16.70').status,'correct');
+});
+test('three wrong answers reveal a custom-concentration answer and allow every room to finish', () => {
+  const mix=defaultDilutions();mix.norepi={amount:8,volume:100};
+  const q=new QuestSession(mix);
+  for (const room of ROOMS) {
+    q.choose(room.id);
+    for (const step of room.steps) {
+      while(q.phase==='intro') q.advance();
+      assert.equal(q.submit('').status,'invalid'); assert.equal(q.attempts,0);
+      assert.equal(q.submit('999').status,'incorrect');
+      assert.equal(q.submit('998').status,'incorrect');
+      assert.notEqual(step.retry[0],step.retry[1]);
+      assert.equal(q.records.length,q.stepIndex);
+      assert.equal(q.submit('997').status,'review');
+      assert.equal(q.phase,'review');
+      const record=q.records.at(-1);
+      assert.equal(record.outcome,'review'); assert.equal(record.attempts,3);
+      assert.equal(record.submitted,997); assert.equal(record.answer,q.result.answer);
+      if(room.id===0 && q.stepIndex===0) assert.equal(record.answer,7.5);
+      assert.equal(q.submit(String(record.answer)).status,'inactive');
+      assert.equal(q.records.length,q.stepIndex+1);
+      q.advance();
+      assert.equal(q.attempts,q.phase==='intro'?0:3);
+    }
+    assert.equal(q.phase,'complete');
+    assert.ok(q.records.every(r=>r.outcome==='review'));
+  }
+  assert.equal(q.completed.size,3);
+});
+test('a correct third answer is a genuine success and review replay clears its attempts', () => {
+  const q=new QuestSession();q.choose(0);q.phase='mission';
+  q.submit('999');q.submit('998');
+  assert.equal(q.submit('20').status,'correct');
+  assert.equal(q.records[0].outcome,'correct');assert.equal(q.attempts,3);
+  q.advance();assert.equal(q.stepIndex,1);assert.equal(q.attempts,0);
+  q.phase='mission';q.submit('999');q.submit('998');q.submit('997');
+  q.choose(0);assert.equal(q.phase,'intro');assert.equal(q.attempts,0);assert.equal(q.records.length,0);
 });
 test('replay clears per-room attempts and hints without losing completed-room collection', () => {
   const q=new QuestSession();q.completed.add(2);q.choose(0);q.phase='mission';q.hint();q.submit('5');q.choose(0);
